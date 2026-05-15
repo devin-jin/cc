@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>N-Back 个位数加减法</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f4f7ff;
+      color: #20314a;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 18px 12px;
+    }
+    .app {
+      width: min(920px, 100%);
+      background: #fff;
+      border: 1px solid #d8e2f2;
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 12px 30px rgba(31, 56, 94, 0.08);
+    }
+    h1 {
+      margin: 0 0 8px;
+      text-align: center;
+      font-size: 30px;
+    }
+    .desc {
+      margin: 0 0 14px;
+      text-align: center;
+      color: #526582;
+      line-height: 1.5;
+      font-size: 14px;
+    }
+    .toolbar {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(160px, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .panel {
+      border: 1px solid #d8e2f2;
+      border-radius: 10px;
+      padding: 8px 10px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .panel label {
+      font-size: 14px;
+      color: #415978;
+    }
+    select, input[type="number"] {
+      border: 1px solid #c9d8ef;
+      border-radius: 8px;
+      padding: 6px 8px;
+      font-size: 14px;
+      width: 90px;
+      background: #fff;
+    }
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    button {
+      border: 0;
+      border-radius: 9px;
+      background: #2d6cdf;
+      color: #fff;
+      padding: 9px 14px;
+      font-size: 14px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button.secondary {
+      background: #6f8098;
+    }
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    .status {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .card {
+      border: 1px solid #d8e2f2;
+      border-radius: 10px;
+      padding: 8px 10px;
+      background: #f8fbff;
+    }
+    .card .k {
+      color: #4f6483;
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+    .card .v {
+      font-size: 22px;
+      font-weight: 700;
+    }
+    .main {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 12px;
+      align-items: start;
+    }
+    .question {
+      border: 1px solid #d8e2f2;
+      border-radius: 12px;
+      min-height: 240px;
+      background: #eef4ff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 10px;
+    }
+    .equation {
+      font-size: clamp(44px, 10vw, 88px);
+      font-weight: 800;
+      line-height: 1;
+      color: #1f3d74;
+      letter-spacing: 1px;
+    }
+    .result-hint {
+      margin-top: 10px;
+      color: #4a6184;
+      font-size: 14px;
+    }
+    .answer-box {
+      border: 1px solid #d8e2f2;
+      border-radius: 12px;
+      padding: 10px;
+      background: #fbfdff;
+    }
+    .answer-box h3 {
+      margin: 0 0 8px;
+      font-size: 17px;
+    }
+    .answer-line {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .answer-line input {
+      width: 92px;
+      font-size: 20px;
+      text-align: center;
+      font-weight: 700;
+    }
+    .num-pad {
+      margin-top: 8px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+    .num-key {
+      border: 1px solid #c8d8f0;
+      border-radius: 8px;
+      background: #eaf1ff;
+      color: #1e3760;
+      font-size: 18px;
+      font-weight: 700;
+      padding: 10px 0;
+      cursor: pointer;
+    }
+    .num-key:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .num-key.zero {
+      grid-column: 2 / 3;
+    }
+    .log {
+      margin-top: 8px;
+      max-height: 250px;
+      overflow: auto;
+      border-top: 1px solid #e2eaf7;
+      padding-top: 8px;
+      font-size: 13px;
+      color: #445c7f;
+      line-height: 1.45;
+    }
+    .log-item.ok { color: #1f8f4d; }
+    .log-item.bad { color: #c03a31; }
+    @media (max-width: 860px) {
+      .toolbar { grid-template-columns: repeat(2, minmax(130px, 1fr)); }
+      .status { grid-template-columns: repeat(2, 1fr); }
+      .main { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>N-Back 个位数加减法</h1>
+    <p class="desc">
+      规则：先看当前算式，再回答“往前第 N 道题的结果”。前 N 题是预热题不计分。作答方式：直接点击数字键（0-9）即可确认并进入下一题。
+    </p>
+
+    <div class="toolbar">
+      <div class="panel">
+        <label for="nInput">N 值</label>
+        <input id="nInput" type="number" min="1" max="10" value="2" />
+      </div>
+      <div class="panel">
+        <label for="totalInput">总题数</label>
+        <input id="totalInput" type="number" min="10" max="300" value="30" />
+      </div>
+      <div class="panel">
+        <label for="modeSelect">难度</label>
+        <select id="modeSelect">
+          <option value="easy">简单</option>
+          <option value="normal" selected>标准</option>
+          <option value="hard">困难</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="startBtn">开始</button>
+      <button id="pauseBtn" class="secondary" disabled>暂停</button>
+      <button id="resumeBtn" class="secondary" disabled>继续</button>
+      <button id="resetBtn" class="secondary">重置</button>
+    </div>
+
+    <div class="status">
+      <div class="card"><div class="k">进度</div><div id="progress" class="v">0 / 0</div></div>
+      <div class="card"><div class="k">正确率</div><div id="accuracy" class="v">0%</div></div>
+      <div class="card"><div class="k">当前目标</div><div id="targetInfo" class="v">-</div></div>
+      <div class="card"><div class="k">节奏</div><div id="countdown" class="v">手动提交</div></div>
+    </div>
+
+    <div class="main">
+      <section class="question">
+        <div id="equation" class="equation">-</div>
+        <div id="resultHint" class="result-hint">点击“开始”进入训练</div>
+      </section>
+
+      <aside class="answer-box">
+        <h3>作答区（直接按数字确认）</h3>
+        <div class="answer-line">
+          <input id="answerInput" type="number" min="0" max="9" placeholder="0-9" disabled />
+        </div>
+        <div id="numPad" class="num-pad">
+          <button type="button" class="num-key" data-num="7" disabled>7</button>
+          <button type="button" class="num-key" data-num="8" disabled>8</button>
+          <button type="button" class="num-key" data-num="9" disabled>9</button>
+          <button type="button" class="num-key" data-num="4" disabled>4</button>
+          <button type="button" class="num-key" data-num="5" disabled>5</button>
+          <button type="button" class="num-key" data-num="6" disabled>6</button>
+          <button type="button" class="num-key" data-num="1" disabled>1</button>
+          <button type="button" class="num-key" data-num="2" disabled>2</button>
+          <button type="button" class="num-key" data-num="3" disabled>3</button>
+          <button type="button" class="num-key zero" data-num="0" disabled>0</button>
+        </div>
+        <div id="feedback">准备就绪，点击“开始”</div>
+        <div id="log" class="log"></div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    const nInput = document.getElementById("nInput");
+    const totalInput = document.getElementById("totalInput");
+    const modeSelect = document.getElementById("modeSelect");
+    const startBtn = document.getElementById("startBtn");
+    const pauseBtn = document.getElementById("pauseBtn");
+    const resumeBtn = document.getElementById("resumeBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const progressEl = document.getElementById("progress");
+    const accuracyEl = document.getElementById("accuracy");
+    const targetInfoEl = document.getElementById("targetInfo");
+    const countdownEl = document.getElementById("countdown");
+    const equationEl = document.getElementById("equation");
+    const resultHintEl = document.getElementById("resultHint");
+    const answerInput = document.getElementById("answerInput");
+    const numPad = document.getElementById("numPad");
+    const feedbackEl = document.getElementById("feedback");
+    const logEl = document.getElementById("log");
+    const numKeys = Array.from(numPad.querySelectorAll(".num-key"));
+
+    let running = false;
+    let paused = false;
+    let nBack = 2;
+    let totalRounds = 30;
+    let currentIndex = 0;
+    let currentQuestion = null;
+    let questions = [];
+    let answers = [];
+    let correct = 0;
+    let answered = 0;
+
+    function randInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function generateQuestion(mode) {
+      const maxOperand = mode === "easy" ? 5 : mode === "normal" ? 9 : 12;
+      let a = randInt(0, maxOperand);
+      let b = randInt(0, maxOperand);
+      const op = Math.random() < 0.5 ? "+" : "-";
+
+      if (op === "+") {
+        while (a + b > 9) {
+          a = randInt(0, maxOperand);
+          b = randInt(0, maxOperand);
+        }
+      } else {
+        while (a - b < 0 || a - b > 9) {
+          a = randInt(0, maxOperand);
+          b = randInt(0, maxOperand);
+        }
+      }
+
+      const result = op === "+" ? a + b : a - b;
+      return { a, b, op, result };
+    }
+
+    function updateStats() {
+      progressEl.textContent = `${currentIndex} / ${totalRounds}`;
+      const acc = answered === 0 ? 0 : Math.round((correct / answered) * 100);
+      accuracyEl.textContent = `${acc}%`;
+      if (currentIndex <= nBack) {
+        targetInfoEl.textContent = `第 ${nBack} 题后可答`;
+      } else {
+        targetInfoEl.textContent = `目标: 第 ${currentIndex - nBack} 题结果`;
+      }
+    }
+
+    function pushLog(text, isOk) {
+      const item = document.createElement("div");
+      item.className = `log-item ${isOk ? "ok" : "bad"}`;
+      item.textContent = text;
+      logEl.prepend(item);
+    }
+
+    function setQuestion(q) {
+      currentQuestion = q;
+      equationEl.textContent = `${q.a} ${q.op} ${q.b}`;
+      resultHintEl.textContent = "算式结果范围：0-9";
+    }
+
+    function setNumPadEnabled(enabled) {
+      numKeys.forEach((btn) => {
+        btn.disabled = !enabled;
+      });
+    }
+
+    function submitAnswer(forceValue) {
+      if (!running || paused) return;
+      if (currentIndex <= nBack) {
+        feedbackEl.textContent = `前 ${nBack} 题是预热题，不计分，已进入下一题`;
+        nextRound();
+        return;
+      }
+
+      const value = forceValue !== undefined ? Number(forceValue) : Number(answerInput.value);
+      if (!Number.isInteger(value) || value < 0 || value > 9) {
+        feedbackEl.textContent = "请输入 0-9 的整数";
+        return;
+      }
+
+      const target = questions[currentIndex - nBack - 1].result;
+      const ok = value === target;
+      answered += 1;
+      if (ok) correct += 1;
+      answers[currentIndex - 1] = value;
+      feedbackEl.textContent = ok ? "回答正确" : `回答错误，正确是 ${target}`;
+      pushLog(
+        `第 ${currentIndex} 题提交 ${value}，目标（第 ${currentIndex - nBack} 题）=${target}，${ok ? "正确" : "错误"}`,
+        ok
+      );
+      updateStats();
+      answerInput.value = "";
+      nextRound();
+    }
+
+    function nextRound() {
+      if (!running || paused) return;
+      if (currentIndex >= totalRounds) {
+        stopGame("训练完成");
+        return;
+      }
+
+      const q = generateQuestion(modeSelect.value);
+      questions.push(q);
+      currentIndex += 1;
+      setQuestion(q);
+      feedbackEl.textContent = currentIndex <= nBack
+        ? `预热题 ${currentIndex}/${nBack}，暂不作答`
+        : `请回答第 ${currentIndex - nBack} 题的结果（提交后进入下一题）`;
+      updateStats();
+    }
+
+    function startGame() {
+      nBack = Math.max(1, Math.min(10, Number(nInput.value) || 2));
+      totalRounds = Math.max(10, Math.min(300, Number(totalInput.value) || 30));
+
+      running = true;
+      paused = false;
+      questions = [];
+      answers = [];
+      correct = 0;
+      answered = 0;
+      currentIndex = 0;
+      logEl.innerHTML = "";
+      feedbackEl.textContent = "开始训练";
+
+      answerInput.disabled = false;
+      setNumPadEnabled(true);
+      pauseBtn.disabled = false;
+      resumeBtn.disabled = true;
+      startBtn.disabled = true;
+
+      nextRound();
+    }
+
+    function stopGame(message) {
+      running = false;
+      paused = false;
+
+      answerInput.disabled = true;
+      setNumPadEnabled(false);
+      pauseBtn.disabled = true;
+      resumeBtn.disabled = true;
+      startBtn.disabled = false;
+
+      equationEl.textContent = "-";
+      resultHintEl.textContent = message;
+      countdownEl.textContent = "手动提交";
+
+      const acc = answered === 0 ? 0 : Math.round((correct / answered) * 100);
+      feedbackEl.textContent = `${message}：正确 ${correct}/${answered}，正确率 ${acc}%`;
+    }
+
+    function pauseGame() {
+      if (!running || paused) return;
+      paused = true;
+      pauseBtn.disabled = true;
+      resumeBtn.disabled = false;
+      setNumPadEnabled(false);
+      feedbackEl.textContent = "已暂停";
+    }
+
+    function resumeGame() {
+      if (!running || !paused) return;
+      paused = false;
+      pauseBtn.disabled = false;
+      resumeBtn.disabled = true;
+      setNumPadEnabled(true);
+      feedbackEl.textContent = "继续训练";
+    }
+
+    function resetGame() {
+      stopGame("已重置");
+      questions = [];
+      answers = [];
+      correct = 0;
+      answered = 0;
+      currentIndex = 0;
+      progressEl.textContent = "0 / 0";
+      accuracyEl.textContent = "0%";
+      targetInfoEl.textContent = "-";
+      logEl.innerHTML = "";
+      feedbackEl.textContent = "准备就绪，点击“开始”";
+    }
+
+    answerInput.addEventListener("keydown", (e) => {
+      if (/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        answerInput.value = e.key;
+        submitAnswer(e.key);
+      }
+    });
+    numPad.addEventListener("click", (e) => {
+      const btn = e.target.closest(".num-key");
+      if (!btn || btn.disabled) return;
+      answerInput.value = btn.dataset.num || "";
+      submitAnswer(btn.dataset.num);
+      answerInput.focus();
+    });
+    window.addEventListener("keydown", (e) => {
+      if (!running || paused) return;
+      if (/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        answerInput.value = e.key;
+        submitAnswer(e.key);
+      }
+    });
+    startBtn.addEventListener("click", startGame);
+    pauseBtn.addEventListener("click", pauseGame);
+    resumeBtn.addEventListener("click", resumeGame);
+    resetBtn.addEventListener("click", resetGame);
+
+    updateStats();
+  </script>
+</body>
+</html>
