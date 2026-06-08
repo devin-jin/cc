@@ -101,16 +101,12 @@
       border-color: var(--line);
       box-shadow: none;
     }
-    .battlefield {
-      display: grid;
-      grid-template-columns: minmax(0, 832px) 188px;
-      gap: 12px;
-      align-items: start;
-    }
+    .battlefield { display: grid; gap: 10px; }
     .canvas-wrap {
       position: relative;
       width: 100%;
       max-width: 832px;
+      justify-self: center;
     }
     canvas {
       width: 100%;
@@ -153,8 +149,11 @@
       color: var(--muted);
       line-height: 1.5;
     }
-    .side-panel {
+    .battle-info {
+      width: min(100%, 832px);
+      justify-self: center;
       display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(220px, 0.72fr);
       gap: 10px;
     }
     .panel {
@@ -190,29 +189,9 @@
     .touch-ui {
       margin-top: 10px;
       display: none;
-      justify-content: space-between;
+      justify-content: flex-end;
       align-items: end;
       gap: 12px;
-    }
-    .joystick {
-      width: 132px;
-      height: 132px;
-      border-radius: 50%;
-      background: rgba(15, 23, 42, 0.92);
-      border: 1px solid var(--line);
-      position: relative;
-      touch-action: none;
-      box-shadow: inset 0 0 28px rgba(56, 189, 248, 0.1);
-    }
-    .stick {
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
-      background: linear-gradient(180deg, #475569, #1e293b);
-      position: absolute;
-      left: 38px;
-      top: 38px;
-      pointer-events: none;
     }
     .fire-btn {
       width: 96px;
@@ -226,13 +205,12 @@
       touch-action: none;
     }
     @media (max-width: 980px) {
-      .battlefield { grid-template-columns: 1fr; }
-      .side-panel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .battle-info { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     @media (max-width: 760px) {
       body { padding: 10px; }
       .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-      .side-panel { grid-template-columns: 1fr; }
+      .battle-info { grid-template-columns: 1fr; }
       .touch-ui { display: flex; }
       .tag { min-height: 50px; padding: 7px 8px; }
       .tag strong { font-size: 18px; }
@@ -263,17 +241,7 @@
     </div>
 
     <div class="battlefield">
-      <div class="canvas-wrap">
-        <canvas id="game" width="832" height="832"></canvas>
-        <div id="startOverlay" class="overlay show">
-          <div class="overlay-card">
-            <h2 id="overlayTitle">准备出击</h2>
-            <p id="overlayText">方向键 / WASD 移动，空格射击。保护底部基地，清除全部敌人。</p>
-            <button id="overlayAction">游戏开始</button>
-          </div>
-        </div>
-      </div>
-      <aside class="side-panel">
+      <div class="battle-info">
         <section class="panel">
           <h2>战场状态</h2>
           <div id="message" class="status-line"></div>
@@ -282,17 +250,25 @@
         <section class="panel">
           <h2>操作</h2>
           <div class="controls">
-            <div>移动：方向键 / WASD</div>
-            <div>射击：空格</div>
+            <div>移动：方向键 / WASD；手机在战场上滑动</div>
+            <div>射击：空格 / 开火键</div>
             <div>暂停：P</div>
-            <div>手机：摇杆 + 开火键</div>
           </div>
         </section>
-      </aside>
+      </div>
+      <div class="canvas-wrap">
+        <canvas id="game" width="832" height="832"></canvas>
+        <div id="startOverlay" class="overlay show">
+          <div class="overlay-card">
+            <h2 id="overlayTitle">准备出击</h2>
+            <p id="overlayText">方向键 / WASD 移动，手机在战场上滑动移动，空格或开火键射击。</p>
+            <button id="overlayAction">游戏开始</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="touch-ui">
-      <div id="joystick" class="joystick"><div id="stick" class="stick"></div></div>
       <button id="fireBtn" class="fire-btn">开火</button>
     </div>
   </div>
@@ -331,8 +307,6 @@
     const overlayTitle = document.getElementById("overlayTitle");
     const overlayText = document.getElementById("overlayText");
     const overlayAction = document.getElementById("overlayAction");
-    const joystick = document.getElementById("joystick");
-    const stick = document.getElementById("stick");
     const fireBtn = document.getElementById("fireBtn");
 
     let walls = [];
@@ -357,6 +331,7 @@
     let frame = 0;
     let touchDir = null;
     let touchFire = false;
+    let swipeStart = null;
 
     const base = { x: 12 * TILE, y: 24 * TILE, w: TILE * 2, h: TILE * 2, alive: true };
     const playerEffects = { shieldUntil: 0, speedUntil: 0, rapidUntil: 0 };
@@ -450,7 +425,7 @@
       playerEffects.speedUntil = 0;
       playerEffects.rapidUntil = 0;
       setupLevel(true);
-      showOverlay("准备出击", "方向键 / WASD 移动，空格射击。保护基地，清除全部敌人。", "游戏开始");
+      showOverlay("准备出击", "方向键 / WASD 移动，手机在战场上滑动移动，空格或开火键射击。", "游戏开始");
     }
 
     function updateUI() {
@@ -897,25 +872,17 @@
       hideOverlay();
     }
 
-    function setStickByPointer(clientX, clientY) {
-      const rect = joystick.getBoundingClientRect();
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
-      let dx = clientX - cx;
-      let dy = clientY - cy;
-      const maxR = 34;
-      const len = Math.hypot(dx, dy);
-      if (len > maxR) { dx = (dx / len) * maxR; dy = (dy / len) * maxR; }
-      stick.style.left = `${38 + dx}px`;
-      stick.style.top = `${38 + dy}px`;
-      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) { touchDir = null; return; }
+    function setSwipeDirection(clientX, clientY) {
+      if (!swipeStart) return;
+      const dx = clientX - swipeStart.x;
+      const dy = clientY - swipeStart.y;
+      if (Math.abs(dx) < 12 && Math.abs(dy) < 12) return;
       touchDir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
     }
 
-    function resetStick() {
+    function resetSwipe() {
+      swipeStart = null;
       touchDir = null;
-      stick.style.left = "38px";
-      stick.style.top = "38px";
     }
 
     window.addEventListener("keydown", (e) => {
@@ -930,10 +897,21 @@
       keys[k] = false;
     });
 
-    joystick.addEventListener("pointerdown", (e) => { joystick.setPointerCapture(e.pointerId); setStickByPointer(e.clientX, e.clientY); });
-    joystick.addEventListener("pointermove", (e) => { if (e.pressure > 0) setStickByPointer(e.clientX, e.clientY); });
-    joystick.addEventListener("pointerup", resetStick);
-    joystick.addEventListener("pointercancel", resetStick);
+    canvas.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      if (typeof e.pointerId === "number") {
+        canvas.setPointerCapture(e.pointerId);
+      }
+      swipeStart = { x: e.clientX, y: e.clientY };
+    });
+    canvas.addEventListener("pointermove", (e) => {
+      if (swipeStart) {
+        e.preventDefault();
+        setSwipeDirection(e.clientX, e.clientY);
+      }
+    });
+    canvas.addEventListener("pointerup", resetSwipe);
+    canvas.addEventListener("pointercancel", resetSwipe);
 
     fireBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); touchFire = true; });
     fireBtn.addEventListener("pointerup", () => { touchFire = false; });
