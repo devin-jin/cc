@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>训练小游戏合集</title>
+  <style>
+    * { box-sizing: border-box; }
+    :root {
+      color-scheme: light;
+      --ink: #17202f;
+      --muted: #5a6578;
+      --line: #d8dee8;
+      --paper: #ffffff;
+      --bg: #f5f7fb;
+      --blue: #2563eb;
+      --green: #168a5b;
+      --orange: #d97706;
+      --red: #dc2626;
+      --violet: #7c3aed;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+    .app {
+      width: min(100%, 1080px);
+      margin: 0 auto;
+      padding: 32px 18px 40px;
+    }
+    header {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 22px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 18px;
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(30px, 5vw, 46px);
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+    .subtitle {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.5;
+    }
+    .count {
+      flex: 0 0 auto;
+      border: 1px solid var(--line);
+      background: var(--paper);
+      border-radius: 8px;
+      padding: 10px 12px;
+      text-align: center;
+      min-width: 86px;
+    }
+    .count strong {
+      display: block;
+      font-size: 26px;
+      line-height: 1;
+    }
+    .count span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+    }
+    .tile {
+      display: grid;
+      gap: 12px;
+      min-height: 178px;
+      padding: 18px;
+      color: inherit;
+      text-decoration: none;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+    }
+    .tile:hover,
+    .tile:focus-visible {
+      transform: translateY(-2px);
+      border-color: var(--accent);
+      box-shadow: 0 12px 28px rgba(23, 32, 47, 0.1);
+      outline: none;
+    }
+    .icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: color-mix(in srgb, var(--accent) 13%, white);
+      color: var(--accent);
+      font-weight: 800;
+      font-size: 18px;
+    }
+    .tile h2 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+    .tile p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 14px;
+    }
+    .open {
+      margin-top: auto;
+      color: var(--accent);
+      font-weight: 700;
+      font-size: 14px;
+    }
+    @media (max-width: 640px) {
+      .app { padding-top: 22px; }
+      header {
+        align-items: stretch;
+        flex-direction: column;
+      }
+      .count {
+        text-align: left;
+        min-width: 0;
+      }
+      .count strong,
+      .count span {
+        display: inline;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div>
+        <h1>训练小游戏合集</h1>
+        <p class="subtitle">打开一个页面即可开始练习，所有内容都作为静态网页运行。</p>
+      </div>
+      <div class="count" aria-label="5 个训练页面">
+        <strong>5</strong>
+        <span>个页面</span>
+      </div>
+    </header>
+
+    <section class="grid" aria-label="训练页面列表">
+      <a class="tile" href="game_2048.html" style="--accent: var(--orange)">
+        <span class="icon">24</span>
+        <h2>2048</h2>
+        <p>滑动合并数字方块，挑战更高分数。</p>
+        <span class="open">打开</span>
+      </a>
+
+      <a class="tile" href="n_back_math.html" style="--accent: var(--blue)">
+        <span class="icon">N</span>
+        <h2>N-Back 个位数加减法</h2>
+        <p>结合记忆回溯与心算练习，训练专注和反应。</p>
+        <span class="open">打开</span>
+      </a>
+
+      <a class="tile" href="schulte_grid.html" style="--accent: var(--green)">
+        <span class="icon">#</span>
+        <h2>舒尔特方格训练</h2>
+        <p>按顺序寻找数字，用计时反馈训练视觉搜索效率。</p>
+        <span class="open">打开</span>
+      </a>
+
+      <a class="tile" href="tank_battle.html" style="--accent: var(--red)">
+        <span class="icon">T</span>
+        <h2>坦克大战</h2>
+        <p>在方格战场中移动、射击、躲避敌人。</p>
+        <span class="open">打开</span>
+      </a>
+
+      <a class="tile" href="word_trainer_web.html" style="--accent: var(--violet)">
+        <span class="icon">W</span>
+        <h2>背单词拖拽版</h2>
+        <p>通过拖拽匹配词义，完成更主动的词汇复习。</p>
+        <span class="open">打开</span>
+      </a>
+    </section>
+  </main>
+</body>
+</html>
