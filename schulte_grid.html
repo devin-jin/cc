@@ -78,14 +78,14 @@
       justify-content: center;
     }
     .grid {
-      width: min(95vmin, calc(100vw - 44px), 700px);
-      height: min(95vmin, calc(100vw - 44px), 700px);
+      width: var(--grid-size, min(95vmin, calc(100vw - 44px), 700px));
+      height: var(--grid-size, min(95vmin, calc(100vw - 44px), 700px));
       background: #dfe7f5;
       border: 2px solid #b9c7df;
       border-radius: 12px;
-      padding: 6px;
+      padding: var(--grid-padding, 6px);
       display: grid;
-      gap: 5px;
+      gap: var(--grid-gap, 5px);
       user-select: none;
       overflow: hidden;
     }
@@ -97,7 +97,11 @@
       align-items: center;
       justify-content: center;
       font-weight: 700;
-      font-size: 42px;
+      font-size: var(--cell-font-size, 42px);
+      line-height: 1;
+      min-width: 0;
+      min-height: 0;
+      padding: 0;
       color: #24374f;
       cursor: pointer;
       transition: transform 0.08s ease, background 0.15s ease;
@@ -157,13 +161,15 @@
       font-size: 13px;
       line-height: 1.55;
     }
-    @media (max-width: 900px) {
+    @media (max-width: 640px) {
       .info-row {
         grid-template-columns: 1fr;
       }
+    }
+    @media (max-width: 900px) {
       .grid {
-        width: min(calc(100vw - 36px), 640px);
-        height: min(calc(100vw - 36px), 640px);
+        width: var(--grid-size, min(calc(100vw - 36px), 640px));
+        height: var(--grid-size, min(calc(100vw - 36px), 640px));
       }
     }
   </style>
@@ -381,6 +387,23 @@
         cell.addEventListener("click", () => onCellClick(cell, num));
         grid.appendChild(cell);
       });
+      resizeGrid();
+    }
+
+    function resizeGrid() {
+      const gridTop = grid.getBoundingClientRect().top;
+      const horizontalPadding = window.innerWidth <= 900 ? 36 : 44;
+      const maxByWidth = window.innerWidth - horizontalPadding;
+      const maxByHeight = window.innerHeight - gridTop - 16;
+      const preferredSize = Math.max(96, Math.min(700, maxByWidth));
+      const gridSize = Math.max(1, Math.min(preferredSize, maxByHeight));
+      const cellFontSize = Math.max(8, Math.min(42, (gridSize / size) * 0.38));
+      const gridGap = Math.max(1, Math.min(5, gridSize / 140));
+      const gridPadding = Math.max(2, Math.min(6, gridSize / 100));
+      grid.style.setProperty("--grid-size", `${gridSize}px`);
+      grid.style.setProperty("--cell-font-size", `${cellFontSize}px`);
+      grid.style.setProperty("--grid-gap", `${gridGap}px`);
+      grid.style.setProperty("--grid-padding", `${gridPadding}px`);
     }
 
     function updateStatus() {
@@ -487,6 +510,7 @@
       }
     });
     closeRecordsBtn.addEventListener("click", closeRecordsOverlay);
+    window.addEventListener("resize", resizeGrid);
     recordsOverlay.addEventListener("click", (e) => {
       if (e.target === recordsOverlay) {
         closeRecordsOverlay();
