@@ -189,9 +189,41 @@
     .touch-ui {
       margin-top: 10px;
       display: none;
-      justify-content: flex-end;
+      justify-content: space-between;
       align-items: end;
-      gap: 12px;
+      gap: 14px;
+      touch-action: none;
+      user-select: none;
+    }
+    .move-pad {
+      width: 128px;
+      height: 128px;
+      display: grid;
+      grid-template-columns: repeat(3, 40px);
+      grid-template-rows: repeat(3, 40px);
+      gap: 4px;
+      flex: 0 0 auto;
+    }
+    .dir-btn {
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      border-radius: 8px;
+      background: rgba(15, 23, 42, 0.92);
+      border-color: rgba(148, 163, 184, 0.44);
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
+      color: #e5eefb;
+      font-size: 20px;
+      line-height: 1;
+      touch-action: none;
+    }
+    .dir-up { grid-column: 2; grid-row: 1; }
+    .dir-left { grid-column: 1; grid-row: 2; }
+    .dir-right { grid-column: 3; grid-row: 2; }
+    .dir-down { grid-column: 2; grid-row: 3; }
+    .swipe-zone {
+      min-height: 112px;
+      flex: 1 1 auto;
     }
     .fire-btn {
       width: 96px;
@@ -214,6 +246,26 @@
       .touch-ui { display: flex; }
       .tag { min-height: 50px; padding: 7px 8px; }
       .tag strong { font-size: 18px; }
+    }
+    @media (max-width: 420px) {
+      .touch-ui { gap: 8px; }
+      .move-pad {
+        width: 116px;
+        height: 116px;
+        grid-template-columns: repeat(3, 36px);
+        grid-template-rows: repeat(3, 36px);
+      }
+      .dir-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 18px;
+      }
+      .fire-btn {
+        width: 84px;
+        height: 84px;
+        font-size: 18px;
+      }
+      .swipe-zone { min-height: 96px; }
     }
   </style>
 </head>
@@ -250,7 +302,7 @@
         <section class="panel">
           <h2>操作</h2>
           <div class="controls">
-            <div>移动：方向键 / WASD；手机在战场上滑动</div>
+            <div>移动：方向键 / WASD；手机滑动或方向键</div>
             <div>射击：空格 / 开火键</div>
             <div>暂停：P</div>
           </div>
@@ -269,6 +321,13 @@
     </div>
 
     <div class="touch-ui">
+      <div class="move-pad" aria-label="移动方向键">
+        <button class="dir-btn dir-up" data-dir="up" aria-label="向上">▲</button>
+        <button class="dir-btn dir-left" data-dir="left" aria-label="向左">◀</button>
+        <button class="dir-btn dir-right" data-dir="right" aria-label="向右">▶</button>
+        <button class="dir-btn dir-down" data-dir="down" aria-label="向下">▼</button>
+      </div>
+      <div class="swipe-zone" aria-hidden="true"></div>
       <button id="fireBtn" class="fire-btn">开火</button>
     </div>
   </div>
@@ -307,7 +366,9 @@
     const overlayTitle = document.getElementById("overlayTitle");
     const overlayText = document.getElementById("overlayText");
     const overlayAction = document.getElementById("overlayAction");
+    const touchUi = document.querySelector(".touch-ui");
     const fireBtn = document.getElementById("fireBtn");
+    const dirBtns = document.querySelectorAll(".dir-btn");
 
     let walls = [];
     let player = null;
@@ -897,21 +958,43 @@
       keys[k] = false;
     });
 
-    canvas.addEventListener("pointerdown", (e) => {
+    function startSwipe(e) {
       e.preventDefault();
       if (typeof e.pointerId === "number") {
-        canvas.setPointerCapture(e.pointerId);
+        e.currentTarget.setPointerCapture(e.pointerId);
       }
       swipeStart = { x: e.clientX, y: e.clientY };
-    });
-    canvas.addEventListener("pointermove", (e) => {
+    }
+
+    function moveSwipe(e) {
       if (swipeStart) {
         e.preventDefault();
         setSwipeDirection(e.clientX, e.clientY);
       }
-    });
+    }
+
+    canvas.addEventListener("pointerdown", startSwipe);
+    canvas.addEventListener("pointermove", moveSwipe);
     canvas.addEventListener("pointerup", resetSwipe);
     canvas.addEventListener("pointercancel", resetSwipe);
+
+    touchUi.addEventListener("pointerdown", (e) => {
+      if (e.target.closest("button")) return;
+      startSwipe(e);
+    });
+    touchUi.addEventListener("pointermove", moveSwipe);
+    touchUi.addEventListener("pointerup", resetSwipe);
+    touchUi.addEventListener("pointercancel", resetSwipe);
+
+    dirBtns.forEach((btn) => {
+      btn.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        touchDir = btn.dataset.dir;
+      });
+      btn.addEventListener("pointerup", resetSwipe);
+      btn.addEventListener("pointercancel", resetSwipe);
+      btn.addEventListener("pointerleave", resetSwipe);
+    });
 
     fireBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); touchFire = true; });
     fireBtn.addEventListener("pointerup", () => { touchFire = false; });
