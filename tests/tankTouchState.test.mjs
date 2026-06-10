@@ -72,17 +72,20 @@ touch.updateMove(130, 102);
 assert.equal(touch.direction, "right");
 
 touch.endMove();
-assert.equal(touch.direction, "right", "lifting a movement finger should keep the tank moving");
+assert.equal(touch.direction, null, "lifting a movement finger should stop the tank");
 
 touch.startFire();
-assert.equal(touch.direction, "right", "starting fire should not change movement direction");
+assert.equal(touch.direction, null, "starting fire should not change movement direction");
 assert.equal(touch.firing, true);
 
 touch.endFire();
-assert.equal(touch.direction, "right", "lifting the fire finger should not change movement direction");
+assert.equal(touch.direction, null, "lifting the fire finger should not change movement direction");
 assert.equal(touch.firing, false);
 
 touch.startMove(100, 100);
 touch.updateMove(98, 70);
-touch.endMove();
 assert.equal(touch.direction, "up", "a later swipe should replace the stored movement direction");
+
+touch.startMove(100, 100);
+touch.updateMove(100, 130);
+assert.equal(touch.direction, null, "swiping in the opposite direction should stop the tank");

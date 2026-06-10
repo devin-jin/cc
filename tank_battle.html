@@ -265,7 +265,7 @@
         <section class="panel">
           <h2>操作</h2>
           <div class="controls">
-            <div>移动：方向键 / WASD；手机滑动或方向键</div>
+            <div>移动：方向键 / WASD；手机滑动，抬手或反向滑动停止</div>
             <div>射击：空格 / 开火键</div>
             <div>暂停：P</div>
           </div>
@@ -891,6 +891,7 @@
       let swipeStart = null;
       let direction = null;
       let firing = false;
+      const opposites = { up: "down", down: "up", left: "right", right: "left" };
 
       return {
         get direction() {
@@ -907,10 +908,17 @@
           const dx = clientX - swipeStart.x;
           const dy = clientY - swipeStart.y;
           if (Math.abs(dx) < threshold && Math.abs(dy) < threshold) return;
-          direction = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
+          const nextDirection = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
+          if (opposites[direction] === nextDirection) {
+            direction = null;
+            swipeStart = { x: clientX, y: clientY };
+            return;
+          }
+          direction = nextDirection;
         },
         endMove() {
           swipeStart = null;
+          direction = null;
         },
         startFire() {
           firing = true;
