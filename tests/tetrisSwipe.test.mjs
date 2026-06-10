@@ -109,9 +109,25 @@ assert.equal(typeof gameWindow.__createSwipeTracker, "function");
   });
 
   swipe.start(0, 0);
-  swipe.move(2, 20);
+  swipe.move(2, 37);
   swipe.move(4, 60);
   swipe.end(4, 60);
 
   assert.equal(hardDrops, 1, "downward dragging should hard drop once");
+}
+
+{
+  let hardDrops = 0;
+  const swipe = gameWindow.__createSwipeTracker({
+    onMove: () => {},
+    onRotate: () => {},
+    onHardDrop: () => hardDrops++,
+    threshold: 18
+  });
+
+  swipe.start(0, 0);
+  swipe.move(2, 30);
+  swipe.end(2, 30);
+
+  assert.equal(hardDrops, 0, "short downward dragging should not hard drop");
 }

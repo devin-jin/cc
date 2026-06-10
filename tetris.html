@@ -625,7 +625,13 @@
       handleKey(key);
     });
 
-    function createSwipeTracker({ onMove, onRotate, onHardDrop, threshold = SWIPE_THRESHOLD }) {
+    function createSwipeTracker({
+      onMove,
+      onRotate,
+      onHardDrop,
+      threshold = SWIPE_THRESHOLD,
+      hardDropThreshold = threshold * 2
+    }) {
       let startX = 0;
       let startY = 0;
       let lastX = 0;
@@ -640,7 +646,7 @@
         const stepDx = x - lastX;
 
         if (!hasMoved && Math.abs(totalDx) < threshold && Math.abs(totalDy) < threshold) return;
-        if (Math.abs(totalDy) > Math.abs(totalDx) && totalDy > threshold) {
+        if (Math.abs(totalDy) > Math.abs(totalDx) && totalDy > hardDropThreshold) {
           if (!hardDropped) {
             onHardDrop();
             hardDropped = true;
