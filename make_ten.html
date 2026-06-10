@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>合成十消</title>
+  <style>
+    * { box-sizing: border-box; }
+    :root {
+      color-scheme: light;
+      --bg: #aeb8b8;
+      --board: #2f7e57;
+      --board-deep: #226642;
+      --frame: #b57a2d;
+      --frame-dark: #6f461c;
+      --paper: #f8fbf3;
+      --ink: #161616;
+      --yellow: #ffe047;
+      --green: #2f9e44;
+      --red: #df3b32;
+      --muted: #4c5b5d;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 16px 10px 24px;
+      background:
+        radial-gradient(circle at 30% 8%, rgba(255, 255, 255, .18), transparent 28%),
+        linear-gradient(180deg, #b8c4c4, var(--bg));
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      user-select: none;
+    }
+    .app {
+      width: min(100%, 720px);
+      display: grid;
+      gap: 10px;
+    }
+    .topbar {
+      display: grid;
+      grid-template-columns: 54px minmax(0, 1fr) 54px;
+      align-items: center;
+      gap: 10px;
+    }
+    .icon-btn {
+      width: 52px;
+      height: 52px;
+      border: 2px solid #d5be39;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: var(--yellow);
+      color: #101010;
+      font-size: 26px;
+      font-weight: 900;
+      box-shadow: 0 3px 0 rgba(0, 0, 0, .28);
+      cursor: pointer;
+    }
+    .status-pill {
+      justify-self: center;
+      width: min(100%, 290px);
+      border-radius: 10px;
+      background: #101010;
+      color: #fff;
+      display: grid;
+      grid-template-columns: 52px 1fr;
+      align-items: center;
+      overflow: hidden;
+      border: 2px solid rgba(255, 255, 255, .25);
+      box-shadow: 0 3px 0 rgba(0, 0, 0, .25);
+      font-weight: 900;
+      font-size: 20px;
+    }
+    .duck {
+      height: 44px;
+      display: grid;
+      place-items: center;
+      background: #f9d84a;
+      color: #7b3f13;
+      font-size: 24px;
+    }
+    .pill-text {
+      padding: 0 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .title {
+      margin: -2px 0 -4px;
+      text-align: center;
+      color: var(--yellow);
+      font-size: clamp(34px, 8vw, 54px);
+      line-height: 1;
+      font-weight: 1000;
+      letter-spacing: 0;
+      text-shadow:
+        0 3px 0 #6b4218,
+        2px 0 0 #6b4218,
+        -2px 0 0 #6b4218,
+        0 -2px 0 #6b4218;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .stat {
+      border: 2px solid #cfab46;
+      border-radius: 8px;
+      background: #fff6bd;
+      padding: 6px 7px;
+      text-align: center;
+      box-shadow: 0 2px 0 rgba(0, 0, 0, .2);
+    }
+    .stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.1;
+    }
+    .stat strong {
+      display: block;
+      font-size: 20px;
+      line-height: 1.05;
+    }
+    .board-frame {
+      position: relative;
+      border: 8px solid var(--frame);
+      border-radius: 16px;
+      background: var(--board);
+      box-shadow:
+        inset 0 0 0 3px rgba(255, 230, 126, .35),
+        inset 0 0 0 8px rgba(20, 83, 45, .5),
+        0 4px 0 var(--frame-dark),
+        0 18px 32px rgba(35, 42, 43, .2);
+      padding: clamp(10px, 2.5vw, 18px);
+      touch-action: none;
+    }
+    .board {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(10, 1fr);
+      gap: clamp(5px, 1.2vw, 10px);
+      min-height: 0;
+    }
+    .cell {
+      aspect-ratio: 1 / 1;
+      display: grid;
+      place-items: center;
+      border-radius: 4px;
+      background: var(--paper);
+      color: #111;
+      font-size: clamp(20px, 5.2vw, 34px);
+      font-weight: 900;
+      line-height: 1;
+      box-shadow:
+        0 2px 0 rgba(0, 0, 0, .18),
+        inset 0 0 0 1px rgba(0, 0, 0, .06);
+      transform: rotate(var(--tilt));
+      transition: opacity 140ms ease, transform 140ms ease, background 120ms ease;
+    }
+    .cell.selected {
+      background: #fff19a;
+      box-shadow:
+        0 0 0 3px rgba(255, 224, 71, .5),
+        0 2px 0 rgba(0, 0, 0, .18);
+    }
+    .cell.cleared {
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(.65) rotate(var(--tilt));
+    }
+    .selection-box {
+      position: absolute;
+      display: none;
+      border: 3px dashed #ffe047;
+      border-radius: 8px;
+      background: rgba(255, 224, 71, .16);
+      pointer-events: none;
+      z-index: 3;
+    }
+    .selection-box.show { display: block; }
+    .message {
+      min-height: 24px;
+      text-align: center;
+      color: #233330;
+      font-size: 15px;
+      font-weight: 800;
+    }
+    .actions {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .action-btn {
+      border: 0;
+      border-radius: 8px;
+      background: #111;
+      color: white;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .action-btn.secondary { background: var(--green); }
+    @media (max-width: 520px) {
+      body { padding: 12px 6px 18px; }
+      .app { gap: 8px; }
+      .stats { gap: 5px; }
+      .stat { padding: 5px 4px; }
+      .stat strong { font-size: 18px; }
+      .board-frame { border-width: 6px; border-radius: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <div class="topbar">
+      <button id="restartIcon" class="icon-btn" aria-label="重新开始">⚙</button>
+      <div class="status-pill" aria-live="polite">
+        <div class="duck">●</div>
+        <div class="pill-text">当前框选和 <span id="currentSum">0</span></div>
+      </div>
+      <div></div>
+    </div>
+
+    <h1 class="title">合成十消数学来啦</h1>
+
+    <section class="stats" aria-label="游戏数据">
+      <div class="stat"><span>得分</span><strong id="score">0</strong></div>
+      <div class="stat"><span>最高分</span><strong id="best">0</strong></div>
+      <div class="stat"><span>剩余</span><strong id="remaining">0</strong></div>
+      <div class="stat"><span>连击</span><strong id="combo">0</strong></div>
+    </section>
+
+    <section id="boardFrame" class="board-frame" aria-label="合成十消数字棋盘">
+      <div id="board" class="board"></div>
+      <div id="selectionBox" class="selection-box"></div>
+    </section>
+
+    <div id="message" class="message">拖出选框，框中数字加起来等于 10 就会消除。</div>
+
+    <div class="actions">
+      <button id="restartBtn" class="action-btn">重开本局</button>
+      <button id="shuffleBtn" class="action-btn secondary">换一盘</button>
+    </div>
+  </main>
+
+  <script>
+    const ROWS = 16;
+    const COLS = 10;
+    const BEST_KEY = "makeTenBestScore";
+
+    const boardEl = document.getElementById("board");
+    const boardFrame = document.getElementById("boardFrame");
+    const selectionBox = document.getElementById("selectionBox");
+    const currentSumEl = document.getElementById("currentSum");
+    const scoreEl = document.getElementById("score");
+    const bestEl = document.getElementById("best");
+    const remainingEl = document.getElementById("remaining");
+    const comboEl = document.getElementById("combo");
+    const messageEl = document.getElementById("message");
+    const restartBtn = document.getElementById("restartBtn");
+    const restartIcon = document.getElementById("restartIcon");
+    const shuffleBtn = document.getElementById("shuffleBtn");
+
+    let board = [];
+    let cellEls = [];
+    let score = 0;
+    let combo = 0;
+    let best = Number(localStorage.getItem(BEST_KEY) || 0);
+    let dragStart = null;
+    let activeSelection = [];
+
+    function createBoard(rows = ROWS, cols = COLS) {
+      return Array.from({ length: rows }, () =>
+        Array.from({ length: cols }, () => ({ value: Math.floor(Math.random() * 9) + 1, cleared: false }))
+      );
+    }
+
+    function cellsInRect(sourceBoard, start, end) {
+      const minRow = Math.max(0, Math.min(start.row, end.row));
+      const maxRow = Math.min(sourceBoard.length - 1, Math.max(start.row, end.row));
+      const minCol = Math.max(0, Math.min(start.col, end.col));
+      const maxCol = Math.min(sourceBoard[0].length - 1, Math.max(start.col, end.col));
+      const cells = [];
+
+      for (let row = minRow; row <= maxRow; row++) {
+        for (let col = minCol; col <= maxCol; col++) {
+          const cell = sourceBoard[row][col];
+          if (!cell.cleared) cells.push({ row, col, value: cell.value });
+        }
+      }
+      return cells;
+    }
+
+    function tryClearSelection(sourceBoard, selection) {
+      const cells = selection.filter(({ row, col }) => sourceBoard[row]?.[col] && !sourceBoard[row][col].cleared);
+      const sum = cells.reduce((total, { row, col }) => total + sourceBoard[row][col].value, 0);
+      if (sum !== 10 || cells.length === 0) return { sum, cleared: false, count: cells.length };
+      cells.forEach(({ row, col }) => {
+        sourceBoard[row][col].cleared = true;
+      });
+      return { sum, cleared: true, count: cells.length };
+    }
+
+    window.__makeTenRules = { cellsInRect, tryClearSelection };
+
+    function updateStats() {
+      const remaining = board.flat().filter((cell) => !cell.cleared).length;
+      scoreEl.textContent = String(score);
+      bestEl.textContent = String(best);
+      remainingEl.textContent = String(remaining);
+      comboEl.textContent = String(combo);
+    }
+
+    function renderBoard() {
+      boardEl.innerHTML = "";
+      cellEls = [];
+      board.forEach((row, rowIndex) => {
+        row.forEach((cell, colIndex) => {
+          const el = document.createElement("div");
+          const tilt = ((rowIndex * 7 + colIndex * 5) % 5) - 2;
+          el.className = `cell${cell.cleared ? " cleared" : ""}`;
+          el.style.setProperty("--tilt", `${tilt * 0.7}deg`);
+          el.textContent = cell.cleared ? "" : String(cell.value);
+          el.dataset.row = String(rowIndex);
+          el.dataset.col = String(colIndex);
+          boardEl.appendChild(el);
+          cellEls.push(el);
+        });
+      });
+      updateStats();
+    }
+
+    function cellAt(clientX, clientY) {
+      const rect = boardEl.getBoundingClientRect();
+      const gap = parseFloat(getComputedStyle(boardEl).gap) || 0;
+      const cellWidth = (rect.width - gap * (COLS - 1)) / COLS;
+      const cellHeight = (rect.height - gap * (ROWS - 1)) / ROWS;
+      const col = Math.floor((clientX - rect.left) / (cellWidth + gap));
+      const row = Math.floor((clientY - rect.top) / (cellHeight + gap));
+      return {
+        row: Math.max(0, Math.min(ROWS - 1, row)),
+        col: Math.max(0, Math.min(COLS - 1, col))
+      };
+    }
+
+    function setSelectionBox(startEvent, currentEvent) {
+      const frameRect = boardFrame.getBoundingClientRect();
+      const x1 = startEvent.clientX - frameRect.left;
+      const y1 = startEvent.clientY - frameRect.top;
+      const x2 = currentEvent.clientX - frameRect.left;
+      const y2 = currentEvent.clientY - frameRect.top;
+      const left = Math.min(x1, x2);
+      const top = Math.min(y1, y2);
+      selectionBox.style.left = `${left}px`;
+      selectionBox.style.top = `${top}px`;
+      selectionBox.style.width = `${Math.abs(x2 - x1)}px`;
+      selectionBox.style.height = `${Math.abs(y2 - y1)}px`;
+      selectionBox.classList.add("show");
+    }
+
+    function clearSelectionVisuals() {
+      cellEls.forEach((el) => el.classList.remove("selected"));
+      selectionBox.classList.remove("show");
+      activeSelection = [];
+      currentSumEl.textContent = "0";
+    }
+
+    function updateSelection(event) {
+      if (!dragStart) return;
+      setSelectionBox(dragStart.event, event);
+      const end = cellAt(event.clientX, event.clientY);
+      activeSelection = cellsInRect(board, dragStart.cell, end);
+      const selectedSet = new Set(activeSelection.map(({ row, col }) => `${row}-${col}`));
+      cellEls.forEach((el) => {
+        el.classList.toggle("selected", selectedSet.has(`${el.dataset.row}-${el.dataset.col}`));
+      });
+      const sum = activeSelection.reduce((total, cell) => total + cell.value, 0);
+      currentSumEl.textContent = String(sum);
+      messageEl.textContent = sum === 10 ? "松手消除。" : `当前合计 ${sum}`;
+    }
+
+    function finishSelection() {
+      if (!dragStart) return;
+      const result = tryClearSelection(board, activeSelection);
+      if (result.cleared) {
+        combo++;
+        score += result.count * 10 + Math.max(0, combo - 1) * 5;
+        if (score > best) {
+          best = score;
+          localStorage.setItem(BEST_KEY, String(best));
+        }
+        messageEl.textContent = `消除 ${result.count} 个数字，合计 10。`;
+      } else if (result.count > 0) {
+        combo = 0;
+        messageEl.textContent = `合计 ${result.sum}，不是 10。`;
+      }
+      dragStart = null;
+      clearSelectionVisuals();
+      renderBoard();
+      if (board.flat().every((cell) => cell.cleared)) {
+        messageEl.textContent = "全部清空，换一盘继续。";
+      }
+    }
+
+    function startDrag(event) {
+      event.preventDefault();
+      boardFrame.setPointerCapture?.(event.pointerId);
+      dragStart = { event, cell: cellAt(event.clientX, event.clientY) };
+      updateSelection(event);
+    }
+
+    function cancelDrag() {
+      dragStart = null;
+      clearSelectionVisuals();
+      messageEl.textContent = "拖出选框，框中数字加起来等于 10 就会消除。";
+    }
+
+    function resetGame(newBoard = true) {
+      if (newBoard) board = createBoard();
+      score = 0;
+      combo = 0;
+      dragStart = null;
+      activeSelection = [];
+      messageEl.textContent = "拖出选框，框中数字加起来等于 10 就会消除。";
+      renderBoard();
+      clearSelectionVisuals();
+    }
+
+    boardFrame.addEventListener("pointerdown", startDrag);
+    boardFrame.addEventListener("pointermove", (event) => {
+      if (dragStart) {
+        event.preventDefault();
+        updateSelection(event);
+      }
+    });
+    boardFrame.addEventListener("pointerup", finishSelection);
+    boardFrame.addEventListener("pointercancel", cancelDrag);
+    restartBtn.addEventListener("click", () => resetGame(false));
+    restartIcon.addEventListener("click", () => resetGame(false));
+    shuffleBtn.addEventListener("click", () => resetGame(true));
+
+    resetGame(true);
+  </script>
+</body>
+</html>
