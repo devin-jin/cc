@@ -346,9 +346,7 @@
     let spawned = 0;
     let enemyKilled = 0;
     let frame = 0;
-    let touchDir = null;
-    let touchFire = false;
-    let swipeStart = null;
+    const touchState = createTankTouchState();
 
     const base = { x: 12 * TILE, y: 24 * TILE, w: TILE * 2, h: TILE * 2, alive: true };
     const playerEffects = { shieldUntil: 0, speedUntil: 0, rapidUntil: 0 };
@@ -566,12 +564,12 @@
 
     function updatePlayer() {
       if (!player || gameOver) return;
-      const moveDir = touchDir || (keys["ArrowUp"] || keys["w"] ? "up" :
+      const moveDir = touchState.direction || (keys["ArrowUp"] || keys["w"] ? "up" :
         keys["ArrowDown"] || keys["s"] ? "down" :
         keys["ArrowLeft"] || keys["a"] ? "left" :
         keys["ArrowRight"] || keys["d"] ? "right" : null);
       if (moveDir) moveTank(player, moveDir);
-      if (keys[" "] || touchFire) fire(player);
+      if (keys[" "] || touchState.firing) fire(player);
       if (player.cooldown > 0) player.cooldown--;
     }
 
@@ -889,18 +887,41 @@
       hideOverlay();
     }
 
-    function setSwipeDirection(clientX, clientY) {
-      if (!swipeStart) return;
-      const dx = clientX - swipeStart.x;
-      const dy = clientY - swipeStart.y;
-      if (Math.abs(dx) < 12 && Math.abs(dy) < 12) return;
-      touchDir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
+    function createTankTouchState(threshold = 12) {
+      let swipeStart = null;
+      let direction = null;
+      let firing = false;
+
+      return {
+        get direction() {
+          return direction;
+        },
+        get firing() {
+          return firing;
+        },
+        startMove(clientX, clientY) {
+          swipeStart = { x: clientX, y: clientY };
+        },
+        updateMove(clientX, clientY) {
+          if (!swipeStart) return;
+          const dx = clientX - swipeStart.x;
+          const dy = clientY - swipeStart.y;
+          if (Math.abs(dx) < threshold && Math.abs(dy) < threshold) return;
+          direction = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
+        },
+        endMove() {
+          swipeStart = null;
+        },
+        startFire() {
+          firing = true;
+        },
+        endFire() {
+          firing = false;
+        }
+      };
     }
 
-    function resetSwipe() {
-      swipeStart = null;
-      touchDir = null;
-    }
+    window.__createTankTouchState = createTankTouchState;
 
     window.addEventListener("keydown", (e) => {
       const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
@@ -919,32 +940,36 @@
       if (typeof e.pointerId === "number") {
         e.currentTarget.setPointerCapture(e.pointerId);
       }
-      swipeStart = { x: e.clientX, y: e.clientY };
+      touchState.startMove(e.clientX, e.clientY);
     }
 
     function moveSwipe(e) {
-      if (swipeStart) {
-        e.preventDefault();
-        setSwipeDirection(e.clientX, e.clientY);
-      }
+      e.preventDefault();
+      touchState.updateMove(e.clientX, e.clientY);
     }
 
     canvas.addEventListener("pointerdown", startSwipe);
     canvas.addEventListener("pointermove", moveSwipe);
-    canvas.addEventListener("pointerup", resetSwipe);
-    canvas.addEventListener("pointercancel", resetSwipe);
+    canvas.addEventListener("pointerup", () => touchState.endMove());
+    canvas.addEventListener("pointercancel", () => touchState.endMove());
 
     touchUi.addEventListener("pointerdown", (e) => {
       if (e.target.closest("button")) return;
       startSwipe(e);
     });
     touchUi.addEventListener("pointermove", moveSwipe);
-    touchUi.addEventListener("pointerup", resetSwipe);
-    touchUi.addEventListener("pointercancel", resetSwipe);
+    touchUi.addEventListener("pointerup", (e) => {
+      if (e.target.closest("button")) return;
+      touchState.endMove();
+    });
+    touchUi.addEventListener("pointercancel", (e) => {
+      if (e.target.closest("button")) return;
+      touchState.endMove();
+    });
 
-    fireBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); touchFire = true; });
-    fireBtn.addEventListener("pointerup", () => { touchFire = false; });
-    fireBtn.addEventListener("pointercancel", () => { touchFire = false; });
+    fireBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); touchState.startFire(); });
+    fireBtn.addEventListener("pointerup", () => { touchState.endFire(); });
+    fireBtn.addEventListener("pointercancel", () => { touchState.endFire(); });
 
     startBtn.addEventListener("click", startOrResume);
     overlayAction.addEventListener("click", startOrResume);
