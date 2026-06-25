@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>贪吃蛇</title>
+  <style>
+    * { box-sizing: border-box; }
+    :root {
+      color-scheme: light;
+      --bg: #ecfdf5;
+      --paper: #ffffff;
+      --ink: #10211a;
+      --muted: #52645c;
+      --line: #cfe3d7;
+      --green: #168a5b;
+      --dark: #0f5132;
+      --food: #e11d48;
+      --yellow: #facc15;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 18px 10px 28px;
+      background:
+        linear-gradient(135deg, rgba(22, 138, 91, .12), transparent 34%),
+        linear-gradient(180deg, #f8fffb, var(--bg));
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .app {
+      width: min(100%, 640px);
+      display: grid;
+      gap: 14px;
+    }
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(34px, 8vw, 54px);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+    .home {
+      color: var(--green);
+      text-decoration: none;
+      font-weight: 800;
+    }
+    .hud {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper);
+      padding: 9px 10px;
+      text-align: center;
+    }
+    .stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.2;
+    }
+    .stat strong {
+      display: block;
+      font-size: 24px;
+      line-height: 1.1;
+    }
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    button {
+      border: 0;
+      border-radius: 8px;
+      background: var(--dark);
+      color: #fff;
+      padding: 10px 14px;
+      font-weight: 800;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button:hover { opacity: .92; }
+    .tip {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+    .stage {
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper);
+      padding: clamp(10px, 2.8vw, 18px);
+      box-shadow: 0 16px 34px rgba(16, 33, 26, .08);
+    }
+    canvas {
+      width: min(100%, 520px);
+      aspect-ratio: 1 / 1;
+      border-radius: 8px;
+      background: #dff7e9;
+      display: block;
+      touch-action: none;
+    }
+    .status {
+      min-height: 24px;
+      font-weight: 800;
+    }
+    .pad {
+      width: min(100%, 260px);
+      justify-self: center;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .pad button {
+      aspect-ratio: 1 / 1;
+      padding: 0;
+      font-size: 22px;
+    }
+    .pad .up { grid-column: 2; }
+    .pad .left { grid-column: 1; }
+    .pad .down { grid-column: 2; }
+    .pad .right { grid-column: 3; }
+    @media (min-width: 720px) {
+      .pad { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <div class="top">
+      <h1>贪吃蛇</h1>
+      <a class="home" href="index.html">返回合集</a>
+    </div>
+
+    <section class="hud" aria-label="游戏状态">
+      <div class="stat"><span>分数</span><strong id="score">0</strong></div>
+      <div class="stat"><span>长度</span><strong id="length">3</strong></div>
+      <div class="stat"><span>速度</span><strong id="speed">1x</strong></div>
+    </section>
+
+    <div class="controls">
+      <button id="restartBtn">重开本局</button>
+      <p class="tip">方向键控制移动，移动端可用下方方向按钮。</p>
+    </div>
+
+    <div id="status" class="status">按方向键开始</div>
+    <div class="stage">
+      <canvas id="game" width="520" height="520" aria-label="贪吃蛇棋盘"></canvas>
+    </div>
+
+    <div class="pad" aria-label="移动方向">
+      <button class="up" data-dir="up" aria-label="向上">↑</button>
+      <button class="left" data-dir="left" aria-label="向左">←</button>
+      <button class="down" data-dir="down" aria-label="向下">↓</button>
+      <button class="right" data-dir="right" aria-label="向右">→</button>
+    </div>
+  </main>
+
+  <script>
+    const GRID = 20;
+    const TICK_MS = 120;
+    const DIRECTIONS = {
+      up: { x: 0, y: -1 },
+      down: { x: 0, y: 1 },
+      left: { x: -1, y: 0 },
+      right: { x: 1, y: 0 }
+    };
+
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const scoreEl = document.getElementById("score");
+    const lengthEl = document.getElementById("length");
+    const speedEl = document.getElementById("speed");
+    const statusEl = document.getElementById("status");
+    const restartBtn = document.getElementById("restartBtn");
+    const padButtons = document.querySelectorAll("[data-dir]");
+
+    let game = null;
+    let timerId = null;
+    let running = false;
+
+    function positionsEqual(a, b) {
+      return a.x === b.x && a.y === b.y;
+    }
+
+    function randomFreeCell(size, snake, rng = Math.random) {
+      const free = [];
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          if (!snake.some((part) => part.x === x && part.y === y)) free.push({ x, y });
+        }
+      }
+      if (free.length === 0) return null;
+      return free[Math.floor(rng() * free.length)];
+    }
+
+    function createGame(size = GRID, rng = Math.random) {
+      const middle = Math.floor(size / 2);
+      const snake = [
+        { x: middle, y: middle },
+        { x: middle - 1, y: middle },
+        { x: middle - 2, y: middle }
+      ];
+      return {
+        size,
+        snake,
+        direction: { x: 1, y: 0 },
+        nextDirection: { x: 1, y: 0 },
+        food: randomFreeCell(size, snake, rng),
+        score: 0,
+        gameOver: false
+      };
+    }
+
+    function changeDirection(nextGame, direction) {
+      if (
+        direction.x + nextGame.direction.x === 0 &&
+        direction.y + nextGame.direction.y === 0
+      ) {
+        return false;
+      }
+      nextGame.nextDirection = { ...direction };
+      return true;
+    }
+
+    function nextState(nextGame, rng = Math.random) {
+      if (nextGame.gameOver) return { gameOver: true, ateFood: false };
+      nextGame.direction = { ...nextGame.nextDirection };
+
+      const head = nextGame.snake[0];
+      const nextHead = {
+        x: head.x + nextGame.direction.x,
+        y: head.y + nextGame.direction.y
+      };
+
+      const hitWall =
+        nextHead.x < 0 ||
+        nextHead.y < 0 ||
+        nextHead.x >= nextGame.size ||
+        nextHead.y >= nextGame.size;
+      const hitSelf = nextGame.snake.some((part) => positionsEqual(part, nextHead));
+
+      if (hitWall || hitSelf) {
+        nextGame.gameOver = true;
+        return { gameOver: true, ateFood: false };
+      }
+
+      nextGame.snake.unshift(nextHead);
+      const ateFood = nextGame.food && positionsEqual(nextHead, nextGame.food);
+      if (ateFood) {
+        nextGame.score += 10;
+        nextGame.food = randomFreeCell(nextGame.size, nextGame.snake, rng);
+      } else {
+        nextGame.snake.pop();
+      }
+
+      return { gameOver: false, ateFood };
+    }
+
+    function draw() {
+      const tile = canvas.width / game.size;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#dff7e9";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.strokeStyle = "rgba(15, 81, 50, .12)";
+      ctx.lineWidth = 1;
+      for (let i = 1; i < game.size; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * tile, 0);
+        ctx.lineTo(i * tile, canvas.height);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, i * tile);
+        ctx.lineTo(canvas.width, i * tile);
+        ctx.stroke();
+      }
+
+      if (game.food) {
+        ctx.fillStyle = "#e11d48";
+        ctx.beginPath();
+        ctx.arc(
+          game.food.x * tile + tile / 2,
+          game.food.y * tile + tile / 2,
+          tile * .34,
+          0,
+          Math.PI * 2
+        );
+        ctx.fill();
+      }
+
+      game.snake.forEach((part, index) => {
+        ctx.fillStyle = index === 0 ? "#0f5132" : "#168a5b";
+        ctx.fillRect(part.x * tile + 2, part.y * tile + 2, tile - 4, tile - 4);
+        if (index === 0) {
+          ctx.fillStyle = "#facc15";
+          ctx.fillRect(part.x * tile + tile * .58, part.y * tile + tile * .25, 3, 3);
+        }
+      });
+    }
+
+    function syncHud() {
+      scoreEl.textContent = String(game.score);
+      lengthEl.textContent = String(game.snake.length);
+      speedEl.textContent = `${(1 + Math.floor(game.score / 80) * 0.1).toFixed(1)}x`;
+    }
+
+    function tick() {
+      const result = nextState(game);
+      if (result.gameOver) {
+        stopLoop();
+        statusEl.textContent = "撞到了，本局结束";
+      } else {
+        statusEl.textContent = result.ateFood ? "吃到了" : "移动中";
+      }
+      syncHud();
+      draw();
+    }
+
+    function startLoop() {
+      if (running || game.gameOver) return;
+      running = true;
+      statusEl.textContent = "移动中";
+      timerId = setInterval(tick, TICK_MS);
+    }
+
+    function stopLoop() {
+      running = false;
+      clearInterval(timerId);
+      timerId = null;
+    }
+
+    function restart() {
+      stopLoop();
+      game = createGame();
+      statusEl.textContent = "按方向键开始";
+      syncHud();
+      draw();
+    }
+
+    function applyDirection(name) {
+      if (!DIRECTIONS[name]) return;
+      changeDirection(game, DIRECTIONS[name]);
+      startLoop();
+      draw();
+    }
+
+    window.addEventListener("keydown", (event) => {
+      const keys = {
+        ArrowUp: "up",
+        ArrowDown: "down",
+        ArrowLeft: "left",
+        ArrowRight: "right",
+        w: "up",
+        s: "down",
+        a: "left",
+        d: "right"
+      };
+      const dir = keys[event.key];
+      if (!dir) return;
+      event.preventDefault();
+      applyDirection(dir);
+    });
+
+    for (const button of padButtons) {
+      button.addEventListener("click", () => applyDirection(button.dataset.dir));
+    }
+    restartBtn.addEventListener("click", restart);
+
+    window.__snakeRules = { createGame, changeDirection, nextState };
+
+    restart();
+  </script>
+</body>
+</html>
