@@ -9,10 +9,12 @@ assert.ok(script, "minesweeper.html should contain an inline script");
 function makeElementStub() {
   return {
     textContent: "",
+    value: "",
     innerHTML: "",
     disabled: false,
     dataset: {},
     className: "",
+    style: { setProperty: () => {} },
     classList: { add: () => {}, remove: () => {}, toggle: () => {} },
     appendChild: () => {},
     addEventListener: () => {},
@@ -48,12 +50,18 @@ function loadGame() {
 const gameWindow = loadGame();
 assert.equal(typeof gameWindow.__minesweeperRules, "object");
 
-const { createBoard, countAdjacentMines, revealCell, toggleFlag } = gameWindow.__minesweeperRules;
+const { createBoard, countAdjacentMines, mineCountForSize, revealCell, toggleFlag } = gameWindow.__minesweeperRules;
 
 {
   const board = createBoard(4, 4, 3, 0, 0, () => 0);
   assert.equal(board[0][0].mine, false, "first revealed cell should never contain a mine");
   assert.equal(board.flat().filter((cell) => cell.mine).length, 3);
+}
+
+{
+  assert.equal(mineCountForSize(8), 8);
+  assert.equal(mineCountForSize(12), 18);
+  assert.equal(mineCountForSize(16), 32);
 }
 
 {

@@ -94,6 +94,27 @@
       font-size: 14px;
     }
     button:hover { opacity: .92; }
+    label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+    }
+    select {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper);
+      color: var(--ink);
+      padding: 0 10px;
+      font: inherit;
+      font-weight: 700;
+    }
+    .mode-btn {
+      background: var(--green);
+    }
     .tip {
       margin: 0;
       color: var(--muted);
@@ -111,9 +132,9 @@
     }
     .board {
       display: grid;
-      grid-template-columns: repeat(12, minmax(28px, 1fr));
+      grid-template-columns: repeat(var(--board-size), minmax(24px, 1fr));
       gap: 4px;
-      min-width: 420px;
+      min-width: min(92vw, calc(var(--board-size) * 34px));
     }
     .cell {
       aspect-ratio: 1 / 1;
@@ -171,12 +192,22 @@
     <section class="stats" aria-label="游戏状态">
       <div class="stat"><span>剩余雷数</span><strong id="mineCount">18</strong></div>
       <div class="stat"><span>时间</span><strong id="timer">0</strong></div>
-      <div class="stat"><span>尺寸</span><strong>12x12</strong></div>
+      <div class="stat"><span>尺寸</span><strong id="sizeLabel">12x12</strong></div>
     </section>
 
     <div class="controls">
       <button id="newGameBtn">新游戏</button>
-      <p class="tip">点击翻开，右键或长按插旗。首格不会踩雷。</p>
+      <button id="modeBtn" class="mode-btn" type="button">触屏：翻开</button>
+      <label for="sizeSelect">
+        宽度
+        <select id="sizeSelect" aria-label="矩阵宽度">
+          <option value="8">8</option>
+          <option value="10">10</option>
+          <option value="12" selected>12</option>
+          <option value="16">16</option>
+        </select>
+      </label>
+      <p class="tip">点按按当前触屏模式操作，右键或长按也可插旗。首格不会踩雷。</p>
     </div>
 
     <div class="status" id="status">准备开始</div>
@@ -186,10 +217,12 @@
   </main>
 
   <script>
-    const SIZE = 12;
-    const MINES = 18;
+    const DEFAULT_SIZE = 12;
     const LONG_PRESS_MS = 430;
     let board = [];
+    let currentSize = DEFAULT_SIZE;
+    let mineTotal = mineCountForSize(DEFAULT_SIZE);
+    let touchMode = "reveal";
     let started = false;
     let ended = false;
     let flags = 0;
@@ -201,8 +234,15 @@
     const boardEl = document.getElementById("board");
     const mineCountEl = document.getElementById("mineCount");
     const timerEl = document.getElementById("timer");
+    const sizeLabelEl = document.getElementById("sizeLabel");
     const statusEl = document.getElementById("status");
     const newGameBtn = document.getElementById("newGameBtn");
+    const modeBtn = document.getElementById("modeBtn");
+    const sizeSelect = document.getElementById("sizeSelect");
+
+    function mineCountForSize(size) {
+      return Math.round(size * size * 0.125);
+    }
 
     function makeEmptyBoard(rows, cols) {
       return Array.from({ length: rows }, (_, row) =>
@@ -310,7 +350,10 @@
     }
 
     function updateStats() {
-      mineCountEl.textContent = String(MINES - flags);
+      mineCountEl.textContent = String(mineTotal - flags);
+      sizeLabelEl.textContent = `${currentSize}x${currentSize}`;
+      boardEl.style.setProperty("--board-size", currentSize);
+      modeBtn.textContent = touchMode === "reveal" ? "触屏：翻开" : "触屏：插旗";
     }
 
     function render() {
@@ -369,7 +412,7 @@
     function openCell(row, col) {
       if (ended) return;
       if (!started) {
-        board = createBoard(SIZE, SIZE, MINES, row, col);
+        board = createBoard(currentSize, currentSize, mineTotal, row, col);
         started = true;
         startTimer();
         statusEl.textContent = "排雷中";
@@ -400,7 +443,9 @@
     }
 
     function newGame() {
-      board = makeEmptyBoard(SIZE, SIZE);
+      currentSize = Number(sizeSelect.value);
+      mineTotal = mineCountForSize(currentSize);
+      board = makeEmptyBoard(currentSize, currentSize);
       started = false;
       ended = false;
       flags = 0;
@@ -410,6 +455,12 @@
       render();
     }
 
+    function toggleTouchMode() {
+      touchMode = touchMode === "reveal" ? "flag" : "reveal";
+      statusEl.textContent = touchMode === "reveal" ? "触屏模式：翻开" : "触屏模式：插旗";
+      updateStats();
+    }
+
     boardEl.addEventListener("click", (event) => {
       if (longPressTriggered) {
         longPressTriggered = false;
@@ -417,7 +468,13 @@
       }
       const cellEl = event.target.closest(".cell");
       if (!cellEl) return;
-      openCell(Number(cellEl.dataset.row), Number(cellEl.dataset.col));
+      const row = Number(cellEl.dataset.row);
+      const col = Number(cellEl.dataset.col);
+      if (touchMode === "flag") {
+        flagCell(row, col);
+      } else {
+        openCell(row, col);
+      }
     });
 
     boardEl.addEventListener("contextmenu", (event) => {
@@ -440,8 +497,10 @@
     window.addEventListener("pointerup", () => clearTimeout(longPressTimer));
     window.addEventListener("pointercancel", () => clearTimeout(longPressTimer));
     newGameBtn.addEventListener("click", newGame);
+    modeBtn.addEventListener("click", toggleTouchMode);
+    sizeSelect.addEventListener("change", newGame);
 
-    window.__minesweeperRules = { createBoard, countAdjacentMines, revealCell, toggleFlag };
+    window.__minesweeperRules = { createBoard, countAdjacentMines, mineCountForSize, revealCell, toggleFlag };
 
     newGame();
   </script>
