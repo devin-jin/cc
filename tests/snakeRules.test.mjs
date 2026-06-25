@@ -40,7 +40,7 @@ function loadGame() {
 const gameWindow = loadGame();
 assert.equal(typeof gameWindow.__snakeRules, "object");
 
-const { createGame, changeDirection, nextState } = gameWindow.__snakeRules;
+const { createGame, changeDirection, directionFromSwipe, nextState, tickMs } = gameWindow.__snakeRules;
 
 function plain(value) {
   return JSON.parse(JSON.stringify(value));
@@ -51,6 +51,14 @@ function plain(value) {
   assert.equal(game.snake.length, 3);
   assert.deepEqual(plain(game.direction), { x: 1, y: 0 });
   assert.notDeepEqual(plain(game.food), plain(game.snake[0]), "food should not spawn on the snake");
+}
+
+assert.equal(tickMs, 180, "snake should move at a slower base speed");
+
+{
+  assert.equal(directionFromSwipe({ x: 10, y: 10 }, { x: 58, y: 16 }), "right");
+  assert.equal(directionFromSwipe({ x: 10, y: 10 }, { x: 8, y: 58 }), "down");
+  assert.equal(directionFromSwipe({ x: 40, y: 40 }, { x: 22, y: 42 }), null, "short swipes should be ignored");
 }
 
 {

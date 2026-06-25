@@ -120,25 +120,6 @@
       min-height: 24px;
       font-weight: 800;
     }
-    .pad {
-      width: min(100%, 260px);
-      justify-self: center;
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-    }
-    .pad button {
-      aspect-ratio: 1 / 1;
-      padding: 0;
-      font-size: 22px;
-    }
-    .pad .up { grid-column: 2; }
-    .pad .left { grid-column: 1; }
-    .pad .down { grid-column: 2; }
-    .pad .right { grid-column: 3; }
-    @media (min-width: 720px) {
-      .pad { display: none; }
-    }
   </style>
 </head>
 <body>
@@ -151,30 +132,25 @@
     <section class="hud" aria-label="游戏状态">
       <div class="stat"><span>分数</span><strong id="score">0</strong></div>
       <div class="stat"><span>长度</span><strong id="length">3</strong></div>
-      <div class="stat"><span>速度</span><strong id="speed">1x</strong></div>
+      <div class="stat"><span>速度</span><strong id="speed">慢速</strong></div>
     </section>
 
     <div class="controls">
       <button id="restartBtn">重开本局</button>
-      <p class="tip">方向键控制移动，移动端可用下方方向按钮。</p>
+      <p class="tip">方向键控制移动，触屏可在棋盘上滑动改变方向。</p>
     </div>
 
-    <div id="status" class="status">按方向键开始</div>
+    <div id="status" class="status">方向键或滑动开始</div>
     <div class="stage">
       <canvas id="game" width="520" height="520" aria-label="贪吃蛇棋盘"></canvas>
     </div>
 
-    <div class="pad" aria-label="移动方向">
-      <button class="up" data-dir="up" aria-label="向上">↑</button>
-      <button class="left" data-dir="left" aria-label="向左">←</button>
-      <button class="down" data-dir="down" aria-label="向下">↓</button>
-      <button class="right" data-dir="right" aria-label="向右">→</button>
-    </div>
   </main>
 
   <script>
     const GRID = 20;
-    const TICK_MS = 120;
+    const TICK_MS = 180;
+    const SWIPE_THRESHOLD = 26;
     const DIRECTIONS = {
       up: { x: 0, y: -1 },
       down: { x: 0, y: 1 },
@@ -189,11 +165,11 @@
     const speedEl = document.getElementById("speed");
     const statusEl = document.getElementById("status");
     const restartBtn = document.getElementById("restartBtn");
-    const padButtons = document.querySelectorAll("[data-dir]");
 
     let game = null;
     let timerId = null;
     let running = false;
+    let swipeStart = null;
 
     function positionsEqual(a, b) {
       return a.x === b.x && a.y === b.y;
@@ -273,6 +249,14 @@
       return { gameOver: false, ateFood };
     }
 
+    function directionFromSwipe(start, end, threshold = SWIPE_THRESHOLD) {
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < threshold) return null;
+      if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? "right" : "left";
+      return dy > 0 ? "down" : "up";
+    }
+
     function draw() {
       const tile = canvas.width / game.size;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -318,7 +302,7 @@
     function syncHud() {
       scoreEl.textContent = String(game.score);
       lengthEl.textContent = String(game.snake.length);
-      speedEl.textContent = `${(1 + Math.floor(game.score / 80) * 0.1).toFixed(1)}x`;
+      speedEl.textContent = "慢速";
     }
 
     function tick() {
@@ -349,7 +333,7 @@
     function restart() {
       stopLoop();
       game = createGame();
-      statusEl.textContent = "按方向键开始";
+      statusEl.textContent = "方向键或滑动开始";
       syncHud();
       draw();
     }
@@ -378,12 +362,24 @@
       applyDirection(dir);
     });
 
-    for (const button of padButtons) {
-      button.addEventListener("click", () => applyDirection(button.dataset.dir));
-    }
+    canvas.addEventListener("pointerdown", (event) => {
+      swipeStart = { x: event.clientX, y: event.clientY };
+      canvas.setPointerCapture?.(event.pointerId);
+    });
+
+    canvas.addEventListener("pointerup", (event) => {
+      if (!swipeStart) return;
+      const direction = directionFromSwipe(swipeStart, { x: event.clientX, y: event.clientY });
+      swipeStart = null;
+      if (direction) applyDirection(direction);
+    });
+
+    canvas.addEventListener("pointercancel", () => {
+      swipeStart = null;
+    });
     restartBtn.addEventListener("click", restart);
 
-    window.__snakeRules = { createGame, changeDirection, nextState };
+    window.__snakeRules = { createGame, changeDirection, directionFromSwipe, nextState, tickMs: TICK_MS };
 
     restart();
   </script>
