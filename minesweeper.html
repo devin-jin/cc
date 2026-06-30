@@ -30,6 +30,9 @@
       background: linear-gradient(180deg, #f8fafc, var(--bg));
       color: var(--ink);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
     }
     .app {
       width: min(100%, 720px);
@@ -86,6 +89,10 @@
       font-weight: 700;
       cursor: pointer;
       font-size: 14px;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
     }
     button:hover { opacity: .92; }
     label {
@@ -110,6 +117,11 @@
       background: var(--green);
       touch-action: none;
       user-select: none;
+      margin-left: auto;
+      min-height: 52px;
+      min-width: 132px;
+      padding: 14px 18px;
+      font-size: 16px;
     }
     .flag-hold.active {
       background: var(--orange);
@@ -128,6 +140,9 @@
       padding: clamp(8px, 2vw, 14px);
       box-shadow: 0 16px 34px rgba(20, 32, 51, .08);
       touch-action: manipulation;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
     }
     .board {
       display: grid;
@@ -178,6 +193,14 @@
       .stat { padding: 7px 6px; }
       .stat strong { font-size: 20px; }
       .board { min-width: 360px; }
+      .controls {
+        align-items: center;
+      }
+      .flag-hold {
+        min-width: 146px;
+        min-height: 58px;
+        font-size: 17px;
+      }
     }
   </style>
 </head>
@@ -197,7 +220,6 @@
 
     <div class="controls">
       <button id="newGameBtn">新游戏</button>
-      <button id="flagHoldBtn" class="flag-hold" type="button" aria-pressed="false">按住插旗</button>
       <label for="sizeSelect">
         宽度
         <select id="sizeSelect" aria-label="矩阵宽度">
@@ -207,6 +229,7 @@
           <option value="16">16</option>
         </select>
       </label>
+      <button id="flagHoldBtn" class="flag-hold" type="button" aria-pressed="false">按住插旗</button>
     </div>
 
     <div class="status" id="status">准备开始</div>
@@ -460,6 +483,10 @@
       flagHoldBtn.setAttribute("aria-pressed", String(active));
     }
 
+    function preventGestureMenu(event) {
+      event.preventDefault();
+    }
+
     boardEl.addEventListener("click", (event) => {
       const cellEl = event.target.closest(".cell");
       if (!cellEl) return;
@@ -496,6 +523,13 @@
       flagHoldPointers.delete(event.pointerId);
       updateFlagHoldButton();
     });
+
+    for (const target of [flagHoldBtn, boardEl]) {
+      target.addEventListener("contextmenu", preventGestureMenu);
+      target.addEventListener("selectstart", preventGestureMenu);
+      target.addEventListener("dragstart", preventGestureMenu);
+    }
+    flagHoldBtn.addEventListener("touchstart", preventGestureMenu, { passive: false });
 
     window.addEventListener("pointerup", (event) => {
       flagHoldPointers.delete(event.pointerId);
