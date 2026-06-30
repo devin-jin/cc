@@ -17,11 +17,6 @@
       margin: 0 auto;
       padding: 12px 16px 16px;
     }
-    h1 {
-      text-align: center;
-      margin: 2px 0 6px;
-      font-size: 30px;
-    }
     .desc {
       text-align: center;
       color: #4c5d78;
@@ -176,8 +171,10 @@
 </head>
 <body>
   <div class="app">
-    <h1>舒尔特方格</h1>
     <p class="desc">按从小到大顺序点击数字（1 → N²），用时越短说明注意力越集中</p>
+    <div class="tips">
+      说明：每轮会先进行 <strong>3 秒倒计时</strong>，结束后计时自动开始。必须按顺序点击，点击错误数字会短暂高亮提示，但不会终止本轮训练。
+    </div>
 
     <div class="toolbar">
       <div class="panel">
@@ -204,10 +201,6 @@
 
     <div class="grid-wrap">
       <div id="grid" class="grid"></div>
-    </div>
-
-    <div class="tips">
-      说明：每轮会先进行 <strong>3 秒倒计时</strong>，结束后计时自动开始。必须按顺序点击，点击错误数字会短暂高亮提示，但不会终止本轮训练。
     </div>
   </div>
   <div id="screenOverlay" class="screen-overlay">

@@ -41,17 +41,6 @@
       margin-bottom: 12px;
       flex-wrap: wrap;
     }
-    h1 {
-      margin: 0;
-      font-size: clamp(28px, 5vw, 42px);
-      line-height: 1;
-      letter-spacing: 0;
-    }
-    .subtitle {
-      color: var(--muted);
-      margin-top: 7px;
-      font-size: 14px;
-    }
     .actions {
       display: flex;
       align-items: center;
@@ -198,9 +187,9 @@
 <body>
   <main class="app">
     <div class="top">
-      <div>
-        <h1>俄罗斯方块</h1>
-        <div class="subtitle">堆叠、消行、提速，尽量坚持更久</div>
+      <div class="tips" aria-label="操作说明">
+        <div>操作：左/右移动，上 / W 旋转，下 / S 软降，触屏下滑或空格硬降，P 暂停。</div>
+        <div>每消 10 行提升 1 级，下落速度会逐级加快。</div>
       </div>
       <div class="actions">
         <button id="startBtn">开始游戏</button>
@@ -235,20 +224,7 @@
             <canvas id="nextCanvas" width="104" height="104" aria-label="下一个方块"></canvas>
             <div>
               <div id="status" class="status">等待开始</div>
-              <div class="tips">每消 10 行提升 1 级，下落速度会逐级加快。</div>
             </div>
-          </div>
-        </section>
-
-        <section class="panel">
-          <h2>操作</h2>
-          <div class="tips">
-            <div>左/右：移动</div>
-            <div>上 / W：旋转</div>
-            <div>下 / S：软降</div>
-            <div>触屏下滑：硬降</div>
-            <div>空格：硬降</div>
-            <div>P：暂停</div>
           </div>
         </section>
       </aside>

@@ -27,12 +27,6 @@
       gap: 10px;
       flex-wrap: wrap;
     }
-    h1 {
-      margin: 0;
-      font-size: 54px;
-      color: #776e65;
-      line-height: 1;
-    }
     .scores {
       display: flex;
       gap: 8px;
@@ -156,8 +150,9 @@
 </head>
 <body>
   <div class="app">
+    <p class="tip">玩法：使用方向键（↑ ↓ ← →）或在手机上滑动。</p>
+
     <div class="top">
-      <h1>2048</h1>
       <div class="scores">
         <div class="score-box">
           <div class="label">分数</div>
@@ -174,7 +169,6 @@
       <button id="restartBtn">重开本局</button>
       <button id="newGameBtn">新游戏</button>
     </div>
-    <p class="tip">玩法：使用方向键（↑ ↓ ← →）或在手机上滑动。</p>
 
     <div id="boardWrap" class="board-wrap">
       <div id="board" class="board">
