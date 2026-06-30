@@ -113,19 +113,6 @@
       font: inherit;
       font-weight: 700;
     }
-    .flag-hold {
-      background: var(--green);
-      touch-action: none;
-      user-select: none;
-      margin-left: auto;
-      min-height: 52px;
-      min-width: 132px;
-      padding: 14px 18px;
-      font-size: 16px;
-    }
-    .flag-hold.active {
-      background: var(--orange);
-    }
     .tip {
       margin: 0;
       color: var(--muted);
@@ -162,6 +149,7 @@
       font-size: clamp(14px, 3.6vw, 22px);
       font-weight: 900;
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55);
+      touch-action: none;
     }
     .cell.revealed {
       background: var(--safe);
@@ -196,17 +184,12 @@
       .controls {
         align-items: center;
       }
-      .flag-hold {
-        min-width: 146px;
-        min-height: 58px;
-        font-size: 17px;
-      }
     }
   </style>
 </head>
 <body>
   <main class="app">
-    <p class="tip">操作：点格子翻开；移动端按住“插旗”键时点格子插旗；桌面端右键也可插旗。首格不会踩雷。</p>
+    <p class="tip">操作：点格子翻开；移动端长按格子或按住下滑插旗；桌面端右键也可插旗。首格不会踩雷。</p>
 
     <div class="top">
       <a class="home" href="index.html">返回合集</a>
@@ -229,7 +212,6 @@
           <option value="16">16</option>
         </select>
       </label>
-      <button id="flagHoldBtn" class="flag-hold" type="button" aria-pressed="false">按住插旗</button>
     </div>
 
     <div class="status" id="status">准备开始</div>
@@ -243,14 +225,13 @@
     let board = [];
     let currentSize = DEFAULT_SIZE;
     let mineTotal = mineCountForSize(DEFAULT_SIZE);
-    let flagHoldPointers = new Set();
-    let flagHoldTouches = new Set();
     let started = false;
     let ended = false;
     let flags = 0;
     let seconds = 0;
     let timerId = null;
     let suppressNextBoardClick = false;
+    let cellPress = null;
 
     const boardEl = document.getElementById("board");
     const mineCountEl = document.getElementById("mineCount");
@@ -258,8 +239,9 @@
     const sizeLabelEl = document.getElementById("sizeLabel");
     const statusEl = document.getElementById("status");
     const newGameBtn = document.getElementById("newGameBtn");
-    const flagHoldBtn = document.getElementById("flagHoldBtn");
     const sizeSelect = document.getElementById("sizeSelect");
+    const LONG_PRESS_MS = 520;
+    const FLAG_SWIPE_DISTANCE = 28;
 
     function mineCountForSize(size) {
       return Math.round(size * size * 0.125);
@@ -475,16 +457,6 @@
       render();
     }
 
-    function isFlagHoldActive() {
-      return flagHoldPointers.size > 0 || flagHoldTouches.size > 0;
-    }
-
-    function updateFlagHoldButton() {
-      const active = isFlagHoldActive();
-      flagHoldBtn.classList.toggle("active", active);
-      flagHoldBtn.setAttribute("aria-pressed", String(active));
-    }
-
     function preventGestureMenu(event) {
       event.preventDefault();
     }
@@ -493,28 +465,50 @@
       return target?.closest?.(".cell") || null;
     }
 
-    function getCellFromPoint(clientX, clientY) {
-      return getCellFromEventTarget(document.elementFromPoint?.(clientX, clientY));
-    }
-
     function flagCellElement(cellEl) {
       if (!cellEl) return false;
       flagCell(Number(cellEl.dataset.row), Number(cellEl.dataset.col));
       return true;
     }
 
-    function addFlagHoldTouches(touches) {
-      for (const touch of touches) {
-        flagHoldTouches.add(touch.identifier);
-      }
-      updateFlagHoldButton();
+    function clearCellPress() {
+      if (cellPress?.timerId) clearTimeout(cellPress.timerId);
+      cellPress = null;
     }
 
-    function removeFlagHoldTouches(touches) {
-      for (const touch of touches) {
-        flagHoldTouches.delete(touch.identifier);
+    function flagPressedCell() {
+      if (!cellPress || cellPress.flagged) return;
+      cellPress.flagged = true;
+      suppressNextBoardClick = true;
+      flagCellElement(cellPress.cellEl);
+    }
+
+    function shouldUseTouchFlagGesture(event) {
+      return event.pointerType === "touch" || event.pointerType === "pen";
+    }
+
+    function startCellPress(event, cellEl) {
+      if (!shouldUseTouchFlagGesture(event)) return;
+      clearCellPress();
+      cellPress = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        cellEl,
+        flagged: false,
+        timerId: setTimeout(flagPressedCell, LONG_PRESS_MS)
+      };
+      cellEl.setPointerCapture?.(event.pointerId);
+    }
+
+    function updateCellPress(event) {
+      if (!cellPress || event.pointerId !== cellPress.pointerId || cellPress.flagged) return;
+      const dx = event.clientX - cellPress.startX;
+      const dy = event.clientY - cellPress.startY;
+      if (dy >= FLAG_SWIPE_DISTANCE && dy > Math.abs(dx) * 1.2) {
+        event.preventDefault();
+        flagPressedCell();
       }
-      updateFlagHoldButton();
     }
 
     boardEl.addEventListener("click", (event) => {
@@ -526,55 +520,30 @@
       if (!cellEl) return;
       const row = Number(cellEl.dataset.row);
       const col = Number(cellEl.dataset.col);
-      if (isFlagHoldActive()) {
-        flagCell(row, col);
-      } else {
-        openCell(row, col);
-      }
+      openCell(row, col);
     });
 
     boardEl.addEventListener("pointerdown", (event) => {
-      if (event.pointerType === "touch") return;
-      if (!isFlagHoldActive()) return;
       const cellEl = getCellFromEventTarget(event.target);
       if (!cellEl) return;
-      event.preventDefault();
-      suppressNextBoardClick = true;
-      flagCellElement(cellEl);
+      startCellPress(event, cellEl);
     });
 
-    boardEl.addEventListener("touchstart", (event) => {
-      if (!isFlagHoldActive()) return;
-      for (const touch of event.changedTouches) {
-        const cellEl = getCellFromPoint(touch.clientX, touch.clientY) || getCellFromEventTarget(event.target);
-        if (flagCellElement(cellEl)) {
-          event.preventDefault();
-          suppressNextBoardClick = true;
-          break;
-        }
-      }
-    }, { passive: false });
-
-    boardEl.addEventListener("touchend", (event) => {
-      if (isFlagHoldActive()) {
-        event.preventDefault();
-        suppressNextBoardClick = true;
-      }
-    }, { passive: false });
-
-    boardEl.addEventListener("touchcancel", (event) => {
-      if (isFlagHoldActive()) {
-        event.preventDefault();
-        suppressNextBoardClick = true;
-      }
-    }, { passive: false });
-
-    boardEl.addEventListener("touchmove", (event) => {
-      if (isFlagHoldActive()) event.preventDefault();
-    }, { passive: false });
+    boardEl.addEventListener("pointermove", updateCellPress);
 
     boardEl.addEventListener("pointerup", (event) => {
-      if (event.pointerType === "touch" && isFlagHoldActive()) suppressNextBoardClick = true;
+      if (cellPress?.pointerId === event.pointerId) {
+        if (cellPress.flagged) suppressNextBoardClick = true;
+        clearCellPress();
+      }
+    });
+
+    boardEl.addEventListener("pointercancel", (event) => {
+      if (cellPress?.pointerId === event.pointerId) clearCellPress();
+    });
+
+    boardEl.addEventListener("pointerleave", (event) => {
+      if (cellPress?.pointerId === event.pointerId && !cellPress.flagged) clearCellPress();
     });
 
     boardEl.addEventListener("contextmenu", (event) => {
@@ -584,57 +553,14 @@
       flagCellElement(cellEl);
     });
 
-    flagHoldBtn.addEventListener("pointerdown", (event) => {
-      event.preventDefault();
-      if (event.pointerType === "touch") return;
-      flagHoldPointers.add(event.pointerId);
-      updateFlagHoldButton();
-      statusEl.textContent = "按住插旗：点格子即可标记";
-    });
-
-    flagHoldBtn.addEventListener("pointerup", (event) => {
-      flagHoldPointers.delete(event.pointerId);
-      updateFlagHoldButton();
-    });
-
-    flagHoldBtn.addEventListener("pointercancel", (event) => {
-      flagHoldPointers.delete(event.pointerId);
-      updateFlagHoldButton();
-    });
-
-    flagHoldBtn.addEventListener("touchstart", (event) => {
-      event.preventDefault();
-      addFlagHoldTouches(event.changedTouches);
-      statusEl.textContent = "按住插旗：点格子即可标记";
-    }, { passive: false });
-
-    flagHoldBtn.addEventListener("touchend", (event) => {
-      removeFlagHoldTouches(event.changedTouches);
-    });
-
-    flagHoldBtn.addEventListener("touchcancel", (event) => {
-      removeFlagHoldTouches(event.changedTouches);
-    });
-
-    for (const target of [flagHoldBtn, boardEl]) {
+    for (const target of [boardEl]) {
       target.addEventListener("contextmenu", preventGestureMenu);
       target.addEventListener("selectstart", preventGestureMenu);
       target.addEventListener("dragstart", preventGestureMenu);
     }
 
-    window.addEventListener("pointerup", (event) => {
-      flagHoldPointers.delete(event.pointerId);
-      updateFlagHoldButton();
-    });
     window.addEventListener("pointercancel", (event) => {
-      flagHoldPointers.delete(event.pointerId);
-      updateFlagHoldButton();
-    });
-    window.addEventListener("touchend", (event) => {
-      removeFlagHoldTouches(event.changedTouches);
-    });
-    window.addEventListener("touchcancel", (event) => {
-      removeFlagHoldTouches(event.changedTouches);
+      if (cellPress?.pointerId === event.pointerId) clearCellPress();
     });
 
     newGameBtn.addEventListener("click", newGame);

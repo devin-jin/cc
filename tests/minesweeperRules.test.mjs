@@ -46,6 +46,7 @@ function makeElementStub() {
     setAttribute: (name, value) => {
       element[name] = value;
     },
+    setPointerCapture: () => {},
     querySelector: () => null,
     closest: (selector) => (selector === ".cell" && element.className.split(/\s+/).includes("cell") ? element : null)
   };
@@ -62,8 +63,9 @@ function makeElementStub() {
 
 function loadGame() {
   const elements = new Map();
+  let nextTimerId = 1;
+  const timers = new Map();
   const document = {
-    pointTarget: null,
     createElement() {
       return makeElementStub();
     },
@@ -75,21 +77,26 @@ function loadGame() {
       }
       return elements.get(id);
     },
-    elementFromPoint() {
-      return document.pointTarget;
-    },
     addEventListener: () => {}
   };
   const sandbox = {
     console,
     document,
+    clearTimeout: (id) => {
+      timers.delete(id);
+    },
     clearInterval: () => {},
+    setTimeout: (listener) => {
+      const timerId = nextTimerId++;
+      timers.set(timerId, listener);
+      return timerId;
+    },
     setInterval: () => 1,
     window: { addEventListener: () => {} }
   };
 
   vm.runInNewContext(script, sandbox, { filename: "minesweeper.html" });
-  return { gameWindow: sandbox.window, document, elements };
+  return { gameWindow: sandbox.window, elements, timers };
 }
 
 function fire(element, type, event) {
@@ -98,7 +105,7 @@ function fire(element, type, event) {
   }
 }
 
-const { gameWindow, document, elements } = loadGame();
+const { gameWindow, elements, timers } = loadGame();
 assert.equal(typeof gameWindow.__minesweeperRules, "object");
 
 const { createBoard, countAdjacentMines, mineCountForSize, revealCell, toggleFlag } = gameWindow.__minesweeperRules;
@@ -149,32 +156,50 @@ const { createBoard, countAdjacentMines, mineCountForSize, revealCell, toggleFla
 
 {
   const boardEl = elements.get("board");
-  const flagHoldBtn = elements.get("flagHoldBtn");
   let firstCell = boardEl.children[0];
 
-  fire(flagHoldBtn, "touchstart", {
-    changedTouches: [{ identifier: 1 }],
-    preventDefault: () => {}
+  fire(boardEl, "pointerdown", {
+    pointerType: "touch",
+    pointerId: 1,
+    clientX: 10,
+    clientY: 10,
+    target: firstCell
   });
 
-  document.pointTarget = firstCell;
+  timers.get(1)();
+
+  firstCell = boardEl.children[0];
+  assert.equal(firstCell.textContent, "!", "long pressing a cell should flag it");
+
+  fire(boardEl, "click", { target: firstCell });
+  assert.equal(boardEl.children[0].textContent, "!", "the synthetic click after flagging should not reveal the cell");
+}
+
+{
+  const boardEl = elements.get("board");
+  let secondCell = boardEl.children[1];
   let prevented = false;
-  fire(boardEl, "touchstart", {
-    changedTouches: [{ identifier: 2, clientX: 10, clientY: 10 }],
-    target: firstCell,
+
+  fire(boardEl, "pointerdown", {
+    pointerType: "touch",
+    pointerId: 2,
+    clientX: 20,
+    clientY: 20,
+    target: secondCell
+  });
+  fire(boardEl, "pointermove", {
+    pointerId: 2,
+    clientX: 21,
+    clientY: 52,
     preventDefault: () => {
       prevented = true;
     }
   });
 
-  assert.equal(prevented, true, "flag-hold touch on a cell should suppress the default tap action");
-  firstCell = boardEl.children[0];
-  assert.equal(firstCell.textContent, "!", "touching a cell while holding the flag button should flag it");
+  assert.equal(prevented, true, "downward press-and-slide should suppress the default tap action");
+  secondCell = boardEl.children[1];
+  assert.equal(secondCell.textContent, "!", "pressing and sliding down on a cell should flag it");
 
-  fire(boardEl, "click", { target: firstCell });
-  assert.equal(boardEl.children[0].textContent, "!", "the synthetic click after flagging should not reveal the cell");
-
-  fire(flagHoldBtn, "touchend", {
-    changedTouches: [{ identifier: 1 }]
-  });
+  fire(boardEl, "click", { target: secondCell });
+  assert.equal(boardEl.children[1].textContent, "!", "the synthetic click after sliding to flag should not reveal the cell");
 }
