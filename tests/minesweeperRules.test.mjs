@@ -7,31 +7,76 @@ const script = html.match(/<script>([\s\S]*)<\/script>/)?.[1];
 assert.ok(script, "minesweeper.html should contain an inline script");
 
 function makeElementStub() {
-  return {
+  const listeners = new Map();
+  const element = {
     textContent: "",
     value: "",
-    innerHTML: "",
     disabled: false,
     dataset: {},
     className: "",
+    children: [],
+    listeners,
     style: { setProperty: () => {} },
-    classList: { add: () => {}, remove: () => {}, toggle: () => {} },
-    appendChild: () => {},
-    addEventListener: () => {},
-    setAttribute: () => {},
-    querySelector: () => null
+    classList: {
+      add: (...tokens) => {
+        const classes = new Set(element.className.split(/\s+/).filter(Boolean));
+        for (const token of tokens) classes.add(token);
+        element.className = [...classes].join(" ");
+      },
+      remove: (...tokens) => {
+        const classes = new Set(element.className.split(/\s+/).filter(Boolean));
+        for (const token of tokens) classes.delete(token);
+        element.className = [...classes].join(" ");
+      },
+      toggle: (token, force) => {
+        const classes = new Set(element.className.split(/\s+/).filter(Boolean));
+        const shouldAdd = force ?? !classes.has(token);
+        if (shouldAdd) classes.add(token);
+        else classes.delete(token);
+        element.className = [...classes].join(" ");
+      }
+    },
+    appendChild: (child) => {
+      element.children.push(child);
+    },
+    addEventListener: (type, listener) => {
+      if (!listeners.has(type)) listeners.set(type, []);
+      listeners.get(type).push(listener);
+    },
+    setAttribute: (name, value) => {
+      element[name] = value;
+    },
+    querySelector: () => null,
+    closest: (selector) => (selector === ".cell" && element.className.split(/\s+/).includes("cell") ? element : null)
   };
+
+  Object.defineProperty(element, "innerHTML", {
+    get: () => "",
+    set: () => {
+      element.children = [];
+    }
+  });
+
+  return element;
 }
 
 function loadGame() {
   const elements = new Map();
   const document = {
+    pointTarget: null,
     createElement() {
       return makeElementStub();
     },
     getElementById(id) {
-      if (!elements.has(id)) elements.set(id, makeElementStub());
+      if (!elements.has(id)) {
+        const element = makeElementStub();
+        if (id === "sizeSelect") element.value = "12";
+        elements.set(id, element);
+      }
       return elements.get(id);
+    },
+    elementFromPoint() {
+      return document.pointTarget;
     },
     addEventListener: () => {}
   };
@@ -44,10 +89,16 @@ function loadGame() {
   };
 
   vm.runInNewContext(script, sandbox, { filename: "minesweeper.html" });
-  return sandbox.window;
+  return { gameWindow: sandbox.window, document, elements };
 }
 
-const gameWindow = loadGame();
+function fire(element, type, event) {
+  for (const listener of element.listeners.get(type) ?? []) {
+    listener(event);
+  }
+}
+
+const { gameWindow, document, elements } = loadGame();
 assert.equal(typeof gameWindow.__minesweeperRules, "object");
 
 const { createBoard, countAdjacentMines, mineCountForSize, revealCell, toggleFlag } = gameWindow.__minesweeperRules;
@@ -94,4 +145,36 @@ const { createBoard, countAdjacentMines, mineCountForSize, revealCell, toggleFla
   assert.equal(board[0][0].flagged, true);
   board[0][0].revealed = true;
   assert.equal(toggleFlag(board, 0, 0), false, "revealed cells cannot be flagged");
+}
+
+{
+  const boardEl = elements.get("board");
+  const flagHoldBtn = elements.get("flagHoldBtn");
+  let firstCell = boardEl.children[0];
+
+  fire(flagHoldBtn, "touchstart", {
+    changedTouches: [{ identifier: 1 }],
+    preventDefault: () => {}
+  });
+
+  document.pointTarget = firstCell;
+  let prevented = false;
+  fire(boardEl, "touchstart", {
+    changedTouches: [{ identifier: 2, clientX: 10, clientY: 10 }],
+    target: firstCell,
+    preventDefault: () => {
+      prevented = true;
+    }
+  });
+
+  assert.equal(prevented, true, "flag-hold touch on a cell should suppress the default tap action");
+  firstCell = boardEl.children[0];
+  assert.equal(firstCell.textContent, "!", "touching a cell while holding the flag button should flag it");
+
+  fire(boardEl, "click", { target: firstCell });
+  assert.equal(boardEl.children[0].textContent, "!", "the synthetic click after flagging should not reveal the cell");
+
+  fire(flagHoldBtn, "touchend", {
+    changedTouches: [{ identifier: 1 }]
+  });
 }

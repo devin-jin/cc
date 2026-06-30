@@ -244,13 +244,13 @@
     let currentSize = DEFAULT_SIZE;
     let mineTotal = mineCountForSize(DEFAULT_SIZE);
     let flagHoldPointers = new Set();
+    let flagHoldTouches = new Set();
     let started = false;
     let ended = false;
     let flags = 0;
     let seconds = 0;
     let timerId = null;
     let suppressNextBoardClick = false;
-    let touchHoldActive = false;
 
     const boardEl = document.getElementById("board");
     const mineCountEl = document.getElementById("mineCount");
@@ -476,7 +476,7 @@
     }
 
     function isFlagHoldActive() {
-      return flagHoldPointers.size > 0 || touchHoldActive;
+      return flagHoldPointers.size > 0 || flagHoldTouches.size > 0;
     }
 
     function updateFlagHoldButton() {
@@ -489,12 +489,40 @@
       event.preventDefault();
     }
 
+    function getCellFromEventTarget(target) {
+      return target?.closest?.(".cell") || null;
+    }
+
+    function getCellFromPoint(clientX, clientY) {
+      return getCellFromEventTarget(document.elementFromPoint?.(clientX, clientY));
+    }
+
+    function flagCellElement(cellEl) {
+      if (!cellEl) return false;
+      flagCell(Number(cellEl.dataset.row), Number(cellEl.dataset.col));
+      return true;
+    }
+
+    function addFlagHoldTouches(touches) {
+      for (const touch of touches) {
+        flagHoldTouches.add(touch.identifier);
+      }
+      updateFlagHoldButton();
+    }
+
+    function removeFlagHoldTouches(touches) {
+      for (const touch of touches) {
+        flagHoldTouches.delete(touch.identifier);
+      }
+      updateFlagHoldButton();
+    }
+
     boardEl.addEventListener("click", (event) => {
       if (suppressNextBoardClick) {
         suppressNextBoardClick = false;
         return;
       }
-      const cellEl = event.target.closest(".cell");
+      const cellEl = getCellFromEventTarget(event.target);
       if (!cellEl) return;
       const row = Number(cellEl.dataset.row);
       const col = Number(cellEl.dataset.col);
@@ -506,25 +534,60 @@
     });
 
     boardEl.addEventListener("pointerdown", (event) => {
+      if (event.pointerType === "touch") return;
       if (!isFlagHoldActive()) return;
-      const cellEl = event.target.closest(".cell");
+      const cellEl = getCellFromEventTarget(event.target);
       if (!cellEl) return;
       event.preventDefault();
       suppressNextBoardClick = true;
-      flagCell(Number(cellEl.dataset.row), Number(cellEl.dataset.col));
+      flagCellElement(cellEl);
+    });
+
+    boardEl.addEventListener("touchstart", (event) => {
+      if (!isFlagHoldActive()) return;
+      for (const touch of event.changedTouches) {
+        const cellEl = getCellFromPoint(touch.clientX, touch.clientY) || getCellFromEventTarget(event.target);
+        if (flagCellElement(cellEl)) {
+          event.preventDefault();
+          suppressNextBoardClick = true;
+          break;
+        }
+      }
+    }, { passive: false });
+
+    boardEl.addEventListener("touchend", (event) => {
+      if (isFlagHoldActive()) {
+        event.preventDefault();
+        suppressNextBoardClick = true;
+      }
+    }, { passive: false });
+
+    boardEl.addEventListener("touchcancel", (event) => {
+      if (isFlagHoldActive()) {
+        event.preventDefault();
+        suppressNextBoardClick = true;
+      }
+    }, { passive: false });
+
+    boardEl.addEventListener("touchmove", (event) => {
+      if (isFlagHoldActive()) event.preventDefault();
+    }, { passive: false });
+
+    boardEl.addEventListener("pointerup", (event) => {
+      if (event.pointerType === "touch" && isFlagHoldActive()) suppressNextBoardClick = true;
     });
 
     boardEl.addEventListener("contextmenu", (event) => {
-      const cellEl = event.target.closest(".cell");
+      const cellEl = getCellFromEventTarget(event.target);
       if (!cellEl) return;
       event.preventDefault();
-      flagCell(Number(cellEl.dataset.row), Number(cellEl.dataset.col));
+      flagCellElement(cellEl);
     });
 
     flagHoldBtn.addEventListener("pointerdown", (event) => {
       event.preventDefault();
+      if (event.pointerType === "touch") return;
       flagHoldPointers.add(event.pointerId);
-      flagHoldBtn.setPointerCapture?.(event.pointerId);
       updateFlagHoldButton();
       statusEl.textContent = "按住插旗：点格子即可标记";
     });
@@ -541,19 +604,16 @@
 
     flagHoldBtn.addEventListener("touchstart", (event) => {
       event.preventDefault();
-      touchHoldActive = true;
-      updateFlagHoldButton();
+      addFlagHoldTouches(event.changedTouches);
       statusEl.textContent = "按住插旗：点格子即可标记";
     }, { passive: false });
 
-    flagHoldBtn.addEventListener("touchend", () => {
-      touchHoldActive = false;
-      updateFlagHoldButton();
+    flagHoldBtn.addEventListener("touchend", (event) => {
+      removeFlagHoldTouches(event.changedTouches);
     });
 
-    flagHoldBtn.addEventListener("touchcancel", () => {
-      touchHoldActive = false;
-      updateFlagHoldButton();
+    flagHoldBtn.addEventListener("touchcancel", (event) => {
+      removeFlagHoldTouches(event.changedTouches);
     });
 
     for (const target of [flagHoldBtn, boardEl]) {
@@ -571,16 +631,10 @@
       updateFlagHoldButton();
     });
     window.addEventListener("touchend", (event) => {
-      if (event.touches.length === 0) {
-        touchHoldActive = false;
-        updateFlagHoldButton();
-      }
+      removeFlagHoldTouches(event.changedTouches);
     });
     window.addEventListener("touchcancel", (event) => {
-      if (event.touches.length === 0) {
-        touchHoldActive = false;
-        updateFlagHoldButton();
-      }
+      removeFlagHoldTouches(event.changedTouches);
     });
 
     newGameBtn.addEventListener("click", newGame);
