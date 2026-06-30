@@ -106,8 +106,13 @@
       font: inherit;
       font-weight: 700;
     }
-    .mode-btn {
+    .flag-hold {
       background: var(--green);
+      touch-action: none;
+      user-select: none;
+    }
+    .flag-hold.active {
+      background: var(--orange);
     }
     .tip {
       margin: 0;
@@ -178,7 +183,7 @@
 </head>
 <body>
   <main class="app">
-    <p class="tip">操作：点按按当前触屏模式操作，右键或长按也可插旗。首格不会踩雷。</p>
+    <p class="tip">操作：点格子翻开；移动端按住“插旗”键时点格子插旗；桌面端右键也可插旗。首格不会踩雷。</p>
 
     <div class="top">
       <a class="home" href="index.html">返回合集</a>
@@ -192,7 +197,7 @@
 
     <div class="controls">
       <button id="newGameBtn">新游戏</button>
-      <button id="modeBtn" class="mode-btn" type="button">触屏：翻开</button>
+      <button id="flagHoldBtn" class="flag-hold" type="button" aria-pressed="false">按住插旗</button>
       <label for="sizeSelect">
         宽度
         <select id="sizeSelect" aria-label="矩阵宽度">
@@ -212,18 +217,15 @@
 
   <script>
     const DEFAULT_SIZE = 12;
-    const LONG_PRESS_MS = 430;
     let board = [];
     let currentSize = DEFAULT_SIZE;
     let mineTotal = mineCountForSize(DEFAULT_SIZE);
-    let touchMode = "reveal";
+    let flagHoldPointers = new Set();
     let started = false;
     let ended = false;
     let flags = 0;
     let seconds = 0;
     let timerId = null;
-    let longPressTimer = null;
-    let longPressTriggered = false;
 
     const boardEl = document.getElementById("board");
     const mineCountEl = document.getElementById("mineCount");
@@ -231,7 +233,7 @@
     const sizeLabelEl = document.getElementById("sizeLabel");
     const statusEl = document.getElementById("status");
     const newGameBtn = document.getElementById("newGameBtn");
-    const modeBtn = document.getElementById("modeBtn");
+    const flagHoldBtn = document.getElementById("flagHoldBtn");
     const sizeSelect = document.getElementById("sizeSelect");
 
     function mineCountForSize(size) {
@@ -347,7 +349,6 @@
       mineCountEl.textContent = String(mineTotal - flags);
       sizeLabelEl.textContent = `${currentSize}x${currentSize}`;
       boardEl.style.setProperty("--board-size", currentSize);
-      modeBtn.textContent = touchMode === "reveal" ? "触屏：翻开" : "触屏：插旗";
     }
 
     function render() {
@@ -449,22 +450,22 @@
       render();
     }
 
-    function toggleTouchMode() {
-      touchMode = touchMode === "reveal" ? "flag" : "reveal";
-      statusEl.textContent = touchMode === "reveal" ? "触屏模式：翻开" : "触屏模式：插旗";
-      updateStats();
+    function isFlagHoldActive() {
+      return flagHoldPointers.size > 0;
+    }
+
+    function updateFlagHoldButton() {
+      const active = isFlagHoldActive();
+      flagHoldBtn.classList.toggle("active", active);
+      flagHoldBtn.setAttribute("aria-pressed", String(active));
     }
 
     boardEl.addEventListener("click", (event) => {
-      if (longPressTriggered) {
-        longPressTriggered = false;
-        return;
-      }
       const cellEl = event.target.closest(".cell");
       if (!cellEl) return;
       const row = Number(cellEl.dataset.row);
       const col = Number(cellEl.dataset.col);
-      if (touchMode === "flag") {
+      if (isFlagHoldActive()) {
         flagCell(row, col);
       } else {
         openCell(row, col);
@@ -478,20 +479,34 @@
       flagCell(Number(cellEl.dataset.row), Number(cellEl.dataset.col));
     });
 
-    boardEl.addEventListener("pointerdown", (event) => {
-      const cellEl = event.target.closest(".cell");
-      if (!cellEl || event.pointerType === "mouse") return;
-      longPressTriggered = false;
-      longPressTimer = setTimeout(() => {
-        longPressTriggered = true;
-        flagCell(Number(cellEl.dataset.row), Number(cellEl.dataset.col));
-      }, LONG_PRESS_MS);
+    flagHoldBtn.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      flagHoldPointers.add(event.pointerId);
+      flagHoldBtn.setPointerCapture?.(event.pointerId);
+      updateFlagHoldButton();
+      statusEl.textContent = "按住插旗：点格子即可标记";
     });
 
-    window.addEventListener("pointerup", () => clearTimeout(longPressTimer));
-    window.addEventListener("pointercancel", () => clearTimeout(longPressTimer));
+    flagHoldBtn.addEventListener("pointerup", (event) => {
+      flagHoldPointers.delete(event.pointerId);
+      updateFlagHoldButton();
+    });
+
+    flagHoldBtn.addEventListener("pointercancel", (event) => {
+      flagHoldPointers.delete(event.pointerId);
+      updateFlagHoldButton();
+    });
+
+    window.addEventListener("pointerup", (event) => {
+      flagHoldPointers.delete(event.pointerId);
+      updateFlagHoldButton();
+    });
+    window.addEventListener("pointercancel", (event) => {
+      flagHoldPointers.delete(event.pointerId);
+      updateFlagHoldButton();
+    });
+
     newGameBtn.addEventListener("click", newGame);
-    modeBtn.addEventListener("click", toggleTouchMode);
     sizeSelect.addEventListener("change", newGame);
 
     window.__minesweeperRules = { createBoard, countAdjacentMines, mineCountForSize, revealCell, toggleFlag };
