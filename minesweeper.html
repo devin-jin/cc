@@ -249,6 +249,8 @@
     let flags = 0;
     let seconds = 0;
     let timerId = null;
+    let suppressNextBoardClick = false;
+    let touchHoldActive = false;
 
     const boardEl = document.getElementById("board");
     const mineCountEl = document.getElementById("mineCount");
@@ -474,7 +476,7 @@
     }
 
     function isFlagHoldActive() {
-      return flagHoldPointers.size > 0;
+      return flagHoldPointers.size > 0 || touchHoldActive;
     }
 
     function updateFlagHoldButton() {
@@ -488,6 +490,10 @@
     }
 
     boardEl.addEventListener("click", (event) => {
+      if (suppressNextBoardClick) {
+        suppressNextBoardClick = false;
+        return;
+      }
       const cellEl = event.target.closest(".cell");
       if (!cellEl) return;
       const row = Number(cellEl.dataset.row);
@@ -497,6 +503,15 @@
       } else {
         openCell(row, col);
       }
+    });
+
+    boardEl.addEventListener("pointerdown", (event) => {
+      if (!isFlagHoldActive()) return;
+      const cellEl = event.target.closest(".cell");
+      if (!cellEl) return;
+      event.preventDefault();
+      suppressNextBoardClick = true;
+      flagCell(Number(cellEl.dataset.row), Number(cellEl.dataset.col));
     });
 
     boardEl.addEventListener("contextmenu", (event) => {
@@ -524,12 +539,28 @@
       updateFlagHoldButton();
     });
 
+    flagHoldBtn.addEventListener("touchstart", (event) => {
+      event.preventDefault();
+      touchHoldActive = true;
+      updateFlagHoldButton();
+      statusEl.textContent = "按住插旗：点格子即可标记";
+    }, { passive: false });
+
+    flagHoldBtn.addEventListener("touchend", () => {
+      touchHoldActive = false;
+      updateFlagHoldButton();
+    });
+
+    flagHoldBtn.addEventListener("touchcancel", () => {
+      touchHoldActive = false;
+      updateFlagHoldButton();
+    });
+
     for (const target of [flagHoldBtn, boardEl]) {
       target.addEventListener("contextmenu", preventGestureMenu);
       target.addEventListener("selectstart", preventGestureMenu);
       target.addEventListener("dragstart", preventGestureMenu);
     }
-    flagHoldBtn.addEventListener("touchstart", preventGestureMenu, { passive: false });
 
     window.addEventListener("pointerup", (event) => {
       flagHoldPointers.delete(event.pointerId);
@@ -538,6 +569,18 @@
     window.addEventListener("pointercancel", (event) => {
       flagHoldPointers.delete(event.pointerId);
       updateFlagHoldButton();
+    });
+    window.addEventListener("touchend", (event) => {
+      if (event.touches.length === 0) {
+        touchHoldActive = false;
+        updateFlagHoldButton();
+      }
+    });
+    window.addEventListener("touchcancel", (event) => {
+      if (event.touches.length === 0) {
+        touchHoldActive = false;
+        updateFlagHoldButton();
+      }
     });
 
     newGameBtn.addEventListener("click", newGame);
